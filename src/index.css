@@ -1,0 +1,13 @@
+.rc-tree-h100,
+.rc-tree-h100 .rc-tree-list {
+  height: 100%;
+}
+
+.rc-tree-h100 .rc-tree-list-holder {
+  height: 100%;
+  overflow-y: scroll;
+}
+
+.rc-tree-flat .rc-tree-treenode span.rc-tree-switcher-noop {
+  display: none;
+}

@@ -1,24 +1,40 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge } from "electron";
+
+import {
+  loadRimworld,
+  setActiveMods,
+  readModsFromSave,
+  Rimworld,
+} from "./rimworld";
+import { loadUserData, saveUserData, UserData } from "./userData";
+
+let _rimworld: Rimworld | undefined = undefined;
+const rimworld = (): Rimworld => {
+  if (!_rimworld) throw new Error("Internal error: rimworld not loaded");
+  return _rimworld;
+};
 
 export const api = {
-  /**
-   * Here you can expose functions to the renderer process
-   * so they can interact with the main (electron) side
-   * without security problems.
-   *
-   * The function below can accessed using `window.Main.sendMessage`
-   */
-
-  sendMessage: (message: string) => {
-    ipcRenderer.send('message', message)
+  async load(): Promise<Rimworld> {
+    _rimworld = await loadRimworld();
+    return _rimworld;
   },
+  loadUserData(): Promise<UserData> {
+    return loadUserData(rimworld());
+  },
+  setActiveMods(
+    ids: string[],
+    opts: { launchAfter?: boolean } = {}
+  ): Promise<void> {
+    return setActiveMods(rimworld(), ids, opts);
+  },
+  saveUserData(input: UserData): Promise<void> {
+    const data = UserData.parse(input);
+    return saveUserData(rimworld(), data);
+  },
+  readModsFromSave(name: string): Promise<string[] | undefined> {
+    return readModsFromSave(rimworld(), name.replace(/[/\\:]/g, ""));
+  },
+};
 
-  /**
-   * Provide an easier way to listen to events
-   */
-  on: (channel: string, callback: Function) => {
-    ipcRenderer.on(channel, (_, data) => callback(data))
-  }
-}
-
-contextBridge.exposeInMainWorld('Main', api)
+contextBridge.exposeInMainWorld("RimModelled", api);
