@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState, useMemo } from "react";
 import { produce } from "immer";
 import memoizeOne from "memoize-one";
+import shallowEqual from "shallowequal";
 
 import { locateItem, locateFolder } from "./treeUtils";
 import { Problem, listProblems } from "./Problem";
@@ -13,7 +14,7 @@ export type RimworldState = UserData & {
 
 export type MaybeLoaded<State> =
   | { loaded: false; error?: string }
-  | { loaded: true; state: State };
+  | { loaded: true; state: State; diskState: State };
 
 const listProblemsMemo = memoizeOne(listProblems);
 export function selectProblems(state: RimworldState): Problem[] {
@@ -22,6 +23,13 @@ export function selectProblems(state: RimworldState): Problem[] {
     state.index,
     state.rimworld.version
   );
+}
+
+export function selectIsDirty(state: MaybeLoaded<RimworldState>): boolean {
+  if (!state.loaded) return false;
+  const { rimworld, index, ...unsavedState } = state.state;
+  const { rimworld: dRimworld, index: dIndex, ...diskState } = state.diskState;
+  return !shallowEqual(unsavedState, diskState);
 }
 
 const actions = {
@@ -113,6 +121,7 @@ export type Actions = {
   [name in keyof typeof actions]: StateUpdateFunc<typeof actions[name]>;
 } & {
   reload(): void;
+  save(launchAfter: boolean): void;
 };
 
 export default function useRimworld(): [MaybeLoaded<RimworldState>, Actions] {
@@ -138,12 +147,28 @@ export default function useRimworld(): [MaybeLoaded<RimworldState>, Actions] {
         index,
         currentMods,
       };
-      setState({ loaded: true, state });
+      setState({ loaded: true, state, diskState: state });
     } catch (e) {
       setState({ loaded: false, error: e.message });
       throw e;
     }
   }, [setState]);
+
+  const save = useCallback(
+    async (newState: MaybeLoaded<RimworldState>, launchAfter: boolean) => {
+      if (!newState.loaded) return;
+      await window.RimModelled.setActiveMods(
+        newState.state.currentMods.filter((t) => t[1]).map((t) => t[0]),
+        { launchAfter }
+      );
+      await window.RimModelled.saveUserData(newState.state);
+      setState((s) => {
+        if (!s.loaded) return s;
+        return { loaded: true, state: s.state, diskState: newState.state };
+      });
+    },
+    [setState]
+  );
 
   useEffect(() => {
     reload();
@@ -157,14 +182,16 @@ export default function useRimworld(): [MaybeLoaded<RimworldState>, Actions] {
         const producer = produce((s: MaybeLoaded<RimworldState>) => {
           if (!s.loaded) return s;
           const result = baseProducer(s.state, ...args);
-          return { loaded: true, state: result };
+          return { loaded: true, state: result, diskState: s.diskState };
         });
         setState(producer);
       };
     }
     boundActions.reload = reload;
     return boundActions;
-  }, [setState]);
+  }, [setState, reload]);
+
+  boundActions.save = save.bind(undefined, state);
 
   return [state, boundActions];
 }

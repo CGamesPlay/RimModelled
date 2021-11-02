@@ -31,6 +31,7 @@ import TextFieldDialog from "./TextFieldDialog";
 type Props = {
   state: RimworldState;
   reload(): void;
+  save(launchAfter: boolean): void;
   replaceCurrentMods(mods: Array<[string, boolean]>): void;
   saveModList(name: string, mods: Array<[string, boolean]>): void;
   deleteModList(name: string): void;
@@ -39,6 +40,7 @@ type Props = {
 export default function ModListMenu({
   state,
   reload,
+  save,
   replaceCurrentMods,
   saveModList,
   deleteModList,
@@ -55,14 +57,6 @@ export default function ModListMenu({
     | "loading"
     | undefined
   >(undefined);
-
-  async function setActiveMods(launchAfter: boolean) {
-    await window.RimModelled.setActiveMods(
-      state.currentMods.filter((t) => t[1]).map((t) => t[0]),
-      { launchAfter }
-    );
-    await window.RimModelled.saveUserData(state);
-  }
 
   function loadModList(name: string) {
     setOpenModal(undefined);
@@ -112,7 +106,7 @@ export default function ModListMenu({
         </Button>
       </ButtonGroup>
       <ButtonGroup variant="contained" sx={{ mr: 1 }}>
-        <Button onClick={() => setActiveMods(true)}>Launch</Button>
+        <Button onClick={() => save(true)}>Launch</Button>
         <Button size="small" {...bindTrigger(launchPopup)}>
           <ArrowDropDownIcon />
         </Button>
@@ -172,7 +166,7 @@ export default function ModListMenu({
         <MenuItem
           onClick={() => {
             launchPopup.close();
-            setActiveMods(false);
+            save(false);
           }}
         >
           Save without launching

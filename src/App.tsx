@@ -4,6 +4,10 @@ import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Toolbar from "@mui/material/Toolbar";
+import IconButton from "@mui/material/IconButton";
+import SaveIcon from "@mui/icons-material/Save";
+import Fade from "@mui/material/Fade";
+import Tooltip from "@mui/material/Tooltip";
 
 import { RimworldState, Actions, selectProblems } from "./useRimworld";
 import { locateItem } from "./treeUtils";
@@ -15,10 +19,12 @@ import FolderDetails from "./FolderDetails";
 
 export default function App({
   state,
+  isDirty,
   actions,
 }: {
   state: RimworldState;
   actions: Actions;
+  isDirty: boolean;
 }): React.ReactElement {
   const [selectedPath, setSelectedPath] = useState<string | undefined>(
     undefined
@@ -47,13 +53,21 @@ export default function App({
           <Typography variant="h6" component="div" pr={2}>
             RimModelled
           </Typography>
-          <Typography variant="subtitle1" component="div">
+          <Typography variant="subtitle1" component="div" pr={2}>
             RimWorld {state.rimworld.version}
           </Typography>
+          <Fade in={isDirty}>
+            <Tooltip title="There are unsaved changes.">
+              <IconButton onClick={() => actions.save(false)}>
+                <SaveIcon sx={{ color: "grey.500" }} />
+              </IconButton>
+            </Tooltip>
+          </Fade>
           <Box sx={{ flexGrow: 1 }} />
           <ModListMenu
             state={state}
             reload={actions.reload}
+            save={actions.save}
             replaceCurrentMods={actions.replaceCurrentMods}
             saveModList={actions.saveModList}
             deleteModList={actions.deleteModList}

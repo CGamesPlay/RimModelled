@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import windowStateKeeper from "electron-window-state";
 
 let mainWindow: BrowserWindow | null;
 
@@ -10,11 +11,21 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 //     ? process.resourcesPath
 //     : app.getAppPath()
 
+let isDirty = false;
+let isQuitting = false;
+
 function createWindow() {
+  const mainWindowState = windowStateKeeper({
+    defaultWidth: 1100,
+    defaultHeight: 700,
+  });
+
   mainWindow = new BrowserWindow({
+    x: mainWindowState.x,
+    y: mainWindowState.y,
+    width: mainWindowState.width,
+    height: mainWindowState.height,
     // icon: path.join(assetsPath, 'assets', 'icon.png'),
-    width: 1100,
-    height: 700,
     backgroundColor: "#191622",
     title: "RimModelled",
     webPreferences: {
@@ -23,7 +34,31 @@ function createWindow() {
     },
   });
 
+  mainWindowState.manage(mainWindow);
+
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+
+  mainWindow.on("close", (e) => {
+    if (isDirty) {
+      e.preventDefault();
+      dialog
+        .showMessageBox(mainWindow!, {
+          type: "question",
+          buttons: ["Keep Editing", "Discard Changes"],
+          defaultId: 0,
+          title: "Confirm",
+          message: "There are unsaved changes to your mod lists.",
+        })
+        .then(({ response }) => {
+          if (response === 0) {
+            mainWindow!.destroy();
+            if (isQuitting) app.quit();
+          } else {
+            isQuitting = false;
+          }
+        });
+    }
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -31,16 +66,16 @@ function createWindow() {
 }
 
 async function registerListeners() {
-  /**
-   * This comes from bridge integration, check bridge.ts
-   */
-  ipcMain.on("message", (_, message) => {
-    console.log(message);
+  ipcMain.on("isDirty", (event, newIsDirty) => {
+    isDirty = newIsDirty;
   });
 }
 
 app
   .on("ready", createWindow)
+  .on("before-quit", () => {
+    isQuitting = true;
+  })
   .whenReady()
   .then(registerListeners)
   .catch((e) => console.error(e));
