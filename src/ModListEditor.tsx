@@ -11,8 +11,10 @@ import {
 } from "material-ui-popup-state/hooks";
 import Tree, { TreeNode } from "rc-tree";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
-import { RimworldState } from "./useRimworld";
+import { renderProblem } from "./Problem";
+import { RimworldState, Problem } from "./useRimworld";
 
 import "rc-tree/assets/index.css";
 
@@ -31,9 +33,6 @@ export default function ModListEditor({
   onChangeLoadOrder,
   onEnableMod,
 }: Props): React.ReactElement {
-  const [popupId] = useId(1, "ModListEditor");
-  const popupState = usePopupState({ variant: "popover", popupId });
-
   const treeRef = useRef<Tree>(null);
   useEffect(() => {
     if (selectedModID) treeRef.current?.scrollTo({ key: selectedModID });
@@ -44,20 +43,12 @@ export default function ModListEditor({
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Box sx={{ py: 1, flex: 0, display: "flex", alignItems: "center" }}>
-        <Box sx={{ flexGrow: 1 }}>{modCount} loaded mods, 0 problems</Box>
-        <div>
-          <IconButton {...bindTrigger(popupState)}>
-            <CheckCircleOutlineIcon />
-          </IconButton>
-          <Menu
-            {...bindMenu(popupState)}
-            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-            transformOrigin={{ vertical: "top", horizontal: "right" }}
-          >
-            <MenuItem onClick={popupState.close}>Cake</MenuItem>
-            <MenuItem onClick={popupState.close}>Death</MenuItem>
-          </Menu>
-        </div>
+        <ModListSummary
+          index={state.index}
+          modCount={modCount}
+          problems={state.problems}
+          onSelectMod={onSelectMod}
+        />
       </Box>
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <ModListTree
@@ -73,6 +64,69 @@ export default function ModListEditor({
     </Box>
   );
 }
+
+type ModListSummaryProps = {
+  index: Record<string, Mod>;
+  modCount: number;
+  problems: Problem[];
+  onSelectMod(id: string): void;
+};
+
+const ModListSummary = ({
+  index,
+  modCount,
+  problems,
+  onSelectMod,
+}: ModListSummaryProps) => {
+  const [popupId] = useId(1, "ModListSummary");
+  const popupState = usePopupState({ variant: "popover", popupId });
+
+  return (
+    <>
+      <Box sx={{ flexGrow: 1 }}>
+        {modCount} loaded {modCount === 1 ? "mod" : "mods"}, {problems.length}{" "}
+        {problems.length === 1 ? "problem" : "problems"}
+      </Box>
+      <div>
+        <IconButton
+          disabled={problems.length === 0}
+          {...bindTrigger(popupState)}
+          color={problems.length === 0 ? undefined : "error"}
+        >
+          {problems.length === 0 ? (
+            <CheckCircleOutlineIcon />
+          ) : (
+            <WarningAmberIcon />
+          )}
+        </IconButton>
+        {problems.length > 0 && (
+          <Menu
+            {...bindMenu(popupState)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+          >
+            {problems.map((problem, i) => {
+              const mod = index[problem.packageId].name;
+              const otherMod =
+                index[problem.otherPackageId]?.name ?? problem.otherPackageId;
+              return (
+                <MenuItem
+                  key={i}
+                  onClick={() => {
+                    popupState.close();
+                    onSelectMod(problem.packageId);
+                  }}
+                >
+                  {renderProblem(mod, problem.type, otherMod)}
+                </MenuItem>
+              );
+            })}
+          </Menu>
+        )}
+      </div>
+    </>
+  );
+};
 
 type ModListTreeProps = {
   selectedModID: string | undefined;

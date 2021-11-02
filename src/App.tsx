@@ -101,7 +101,11 @@ export default function App({
           <Grid item xs={6} sx={{ height: "100%" }}>
             <Box pr={2} pt={2} sx={{ height: "100%", overflowY: "scroll" }}>
               {selectedMod ? (
-                <ModDetails selectedMod={selectedMod} />
+                <ModDetails
+                  problems={state.problems}
+                  index={state.index}
+                  selectedMod={selectedMod}
+                />
               ) : selectedFolder ? (
                 <FolderDetails
                   path={selectedID!}

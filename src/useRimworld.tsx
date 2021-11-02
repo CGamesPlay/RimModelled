@@ -3,15 +3,92 @@ import { produce } from "immer";
 
 import { locateItem, locateFolder } from "./treeUtils";
 
+export type ProblemType =
+  | "badEngine"
+  | "incompatibleWith"
+  | "wantsBefore"
+  | "wantsAfter"
+  | "requires";
+
+export type Problem = {
+  packageId: string;
+  type: ProblemType;
+  otherPackageId: string;
+};
+
 export type RimworldState = UserData & {
   rimworld: Rimworld;
   index: Record<string, Mod>;
   currentMods: Array<[string, boolean]>;
+  problems: Problem[];
 };
 
 export type MaybeLoaded<State> =
   | { loaded: false; error?: string }
   | { loaded: true; state: State };
+
+function listProblems(state: RimworldState): Problem[] {
+  const result: Problem[] = [];
+  const modIDs = state.currentMods.filter((t) => t[1]).map((t) => t[0]);
+  const modOrder = Object.fromEntries(modIDs.map((id, i) => [id, i]));
+
+  modIDs.forEach((packageId, index) => {
+    const mod = state.index[packageId];
+
+    if (
+      mod.deps.engines.length > 0 &&
+      !mod.deps.engines.includes(state.rimworld.version)
+    ) {
+      result.push({ packageId, type: "badEngine", otherPackageId: "" });
+    }
+
+    mod.deps.requires.forEach((ref) => {
+      if (!(modOrder[ref.packageId] < index)) {
+        result.push({
+          packageId,
+          type: "requires",
+          otherPackageId: ref.packageId,
+        });
+      }
+    });
+
+    mod.deps.loadAfter.forEach((ref) => {
+      // Avoid showing duplicate errors from base dependencies
+      if (mod.deps.requires.find((r) => r.packageId === ref.packageId)) return;
+      if (!(ref.packageId in modOrder)) return;
+      if (!(modOrder[ref.packageId] < index)) {
+        result.push({
+          packageId,
+          type: "wantsAfter",
+          otherPackageId: ref.packageId,
+        });
+      }
+    });
+
+    mod.deps.loadBefore.forEach((ref) => {
+      if (!(ref.packageId in modOrder)) return;
+      if (!(modOrder[ref.packageId] > index)) {
+        result.push({
+          packageId,
+          type: "wantsBefore",
+          otherPackageId: ref.packageId,
+        });
+      }
+    });
+
+    mod.deps.incompatibilities.forEach((ref) => {
+      if (ref.packageId in modOrder) {
+        result.push({
+          packageId,
+          type: "incompatibleWith",
+          otherPackageId: ref.packageId,
+        });
+      }
+    });
+  });
+
+  return result;
+}
 
 const actions = {
   enableMod(state: RimworldState, modID: string, loaded: boolean) {
@@ -28,6 +105,7 @@ const actions = {
     } else {
       state.currentMods[position][1] = loaded;
     }
+    state.problems = listProblems(state);
   },
 
   changeLoadOrder(state: RimworldState, modID: string, position: number) {
@@ -36,10 +114,12 @@ const actions = {
     if (oldPosition !== -1) state.currentMods.splice(oldPosition, 1);
     if (oldPosition < position) position--;
     state.currentMods.splice(position, 0, [modID, true]);
+    state.problems = listProblems(state);
   },
 
   replaceCurrentMods(state: RimworldState, nextMods: Array<[string, boolean]>) {
     state.currentMods = nextMods;
+    state.problems = listProblems(state);
   },
 
   saveModList(
@@ -113,11 +193,15 @@ export default function useRimworld(): [MaybeLoaded<RimworldState>, Actions] {
       const currentMods = rimworld.activeModIDs.map(
         (modID) => [modID, true] as [string, boolean]
       );
-      const state: MaybeLoaded<RimworldState> = {
-        loaded: true,
-        state: { rimworld, ...userData, index, currentMods },
+      const state: RimworldState = {
+        rimworld,
+        ...userData,
+        index,
+        currentMods,
+        problems: [],
       };
-      setState(state);
+      state.problems = listProblems(state);
+      setState({ loaded: true, state });
     } catch (e) {
       setState({ loaded: false, error: e.message });
       throw e;
