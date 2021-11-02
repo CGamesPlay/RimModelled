@@ -5,7 +5,7 @@ import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Toolbar from "@mui/material/Toolbar";
 
-import { RimworldState, Actions } from "./useRimworld";
+import { RimworldState, Actions, selectProblems } from "./useRimworld";
 import { locateItem } from "./treeUtils";
 import ModListMenu from "./ModListMenu";
 import ModTree from "./ModTree";
@@ -96,15 +96,22 @@ export default function App({
               onSelectMod={setSelectedPath}
               onChangeLoadOrder={actions.changeLoadOrder}
               onEnableMod={actions.enableMod}
+              onReplaceCurrentMods={actions.replaceCurrentMods}
             />
           </Grid>
           <Grid item xs={6} sx={{ height: "100%" }}>
-            <Box pr={2} pt={2} sx={{ height: "100%", overflowY: "scroll" }}>
+            <Box
+              pr={2}
+              pt={2}
+              sx={{ height: "100%", overflowY: "scroll" }}
+              key={selectedPath}
+            >
               {selectedNode?.type === "item" ? (
                 <ModDetails
-                  problems={state.problems}
+                  problems={selectProblems(state)}
                   index={state.index}
                   selectedNode={selectedNode}
+                  onSelectMod={setSelectedPath}
                   setNodeNotes={actions.setNodeNotes}
                 />
               ) : selectedNode?.type === "folder" ? (

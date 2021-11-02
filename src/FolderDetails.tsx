@@ -43,7 +43,7 @@ export default function FolderDetails({
   const [openModal, setOpenModal] = useState<"rename" | undefined>(undefined);
 
   return (
-    <Box sx={{ p: 2, pt: "40px" }}>
+    <Box sx={{ p: 2, pt: "40px" }} key={path}>
       <Box sx={{ float: "right" }}>
         <IconButton {...bindTrigger(menuPopup)}>
           <MoreVertIcon />

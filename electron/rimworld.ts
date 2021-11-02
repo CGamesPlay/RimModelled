@@ -7,6 +7,8 @@ import xpath from "xpath";
 import { z } from "zod";
 import { shell } from "electron";
 
+const corePackageId = "ludeon.rimworld";
+
 // Note: versions are loaded presently but ignored. So few mods use them that
 // it doesn't seem worth the trouble.
 export const ModRef = z.union([
@@ -213,7 +215,7 @@ async function loadMod(
     .then(() => true)
     .catch(() => false);
   const packageId = x("/ModMetaData/packageId", about)?.toLowerCase();
-  const deps = loadModDeps(version, about, manifest);
+  const deps = loadModDeps(version, about, manifest, packageId);
   return checkMod({
     path: modPath,
     name: x("/ModMetaData/name", about) ?? path.basename(modPath),
@@ -232,22 +234,23 @@ async function loadMod(
       )
     ),
     previewURL: hasPreview ? pathToFileURL(previewPath).href : undefined,
-    isCritical: packageId === "ludeon.rimworld",
+    isCritical: packageId === corePackageId,
     deps,
   });
 }
 
 function loadModDeps(
-  version: string,
+  rwVersion: string,
   about: Node,
-  manifest: Node | undefined
+  manifest: Node | undefined,
+  packageId: string
 ): Mod["deps"] {
   const engines = xs("/ModMetaData/supportedVersions/li", about);
   const requires = ([] as string[]).concat(
     xs("/Manifest/dependencies/li", manifest),
     xsFallback(
       [
-        `/ModMetaData/modDependenciesByVersion/v${version}/li/packageId`,
+        `/ModMetaData/modDependenciesByVersion/v${rwVersion}/li/packageId`,
         "/ModMetaData/modDependencies/li/packageId",
       ],
       about
@@ -257,7 +260,7 @@ function loadModDeps(
     xs("/Manifest/loadBefore/li", manifest),
     xsFallback(
       [
-        `/ModMetaData/loadBeforeByVersion/v${version}/li | /ModMetaData/forceLoadBefore/li`,
+        `/ModMetaData/loadBeforeByVersion/v${rwVersion}/li | /ModMetaData/forceLoadBefore/li`,
         "/ModMetaData/loadBefore/li | /ModMetaData/forceLoadBefore/li",
       ],
       about
@@ -267,7 +270,7 @@ function loadModDeps(
     xs("/Manifest/loadAfter/li", manifest),
     xsFallback(
       [
-        `/ModMetaData/loadAfterByVersion/v${version}/li | /ModMetaData/forceLoadAfter/li`,
+        `/ModMetaData/loadAfterByVersion/v${rwVersion}/li | /ModMetaData/forceLoadAfter/li`,
         "/ModMetaData/loadAfter/li | /ModMetaData/forceLoadAfter/li",
       ],
       about
@@ -277,25 +280,38 @@ function loadModDeps(
     xs("/Manifest/incompatibleWith/li", manifest),
     xsFallback(
       [
-        `/ModMetaData/incompatibleWithByVersion/v${version}/li`,
+        `/ModMetaData/incompatibleWithByVersion/v${rwVersion}/li`,
         "/ModMetaData/incompatibleWith/li",
       ],
       about
     )
   );
-  return {
+  const deps: Mod["deps"] = {
     engines,
     requires: parseModRefs(requires),
     loadBefore: parseModRefs(loadBefore),
     loadAfter: parseModRefs(loadAfter),
     incompatibilities: parseModRefs(incompatibilities),
   };
+
+  // Add an implied loadAfter core if there is no other reference to it
+  const isCore = (r: ModRef) => r.packageId === corePackageId;
+  if (
+    packageId !== corePackageId &&
+    !deps.requires.find(isCore) &&
+    !deps.loadBefore.find(isCore) &&
+    !deps.loadAfter.find(isCore) &&
+    !deps.incompatibilities.find(isCore)
+  ) {
+    deps.requires.push({ packageId: corePackageId });
+  }
+  return deps;
 }
 
 function parseModRefs(input: string[]): ModRef[] {
   const refs = input.map((refStr): ModRef => {
     refStr = refStr.toLowerCase();
-    if (refStr === "core") refStr = "ludeon.rimworld";
+    if (refStr === "core") refStr = corePackageId;
     const parts = refStr.split(" ");
     if (parts.length === 1) return { packageId: refStr };
     return {

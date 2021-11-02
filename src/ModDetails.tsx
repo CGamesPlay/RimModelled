@@ -7,13 +7,13 @@ import AlertTitle from "@mui/material/AlertTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 
-import { Problem } from "./useRimworld";
-import { renderProblem } from "./Problem";
+import { Problem, ProblemDescription } from "./ProblemDescription";
 
 type Props = {
   problems: Problem[];
   index: Record<string, Mod>;
   selectedNode: ModTreeItem;
+  onSelectMod(id: string): void;
   setNodeNotes(path: string, notes: string): void;
 };
 
@@ -21,6 +21,7 @@ export default function ModDetails({
   problems,
   index,
   selectedNode,
+  onSelectMod,
   setNodeNotes,
 }: Props): React.ReactElement {
   const [textFieldId] = useId(1, "ModDetailsNotes");
@@ -80,11 +81,13 @@ export default function ModDetails({
           <AlertTitle>Errors</AlertTitle>
           <Box component="ul" m={0} pl={2}>
             {myProblems.map((p, i) => {
-              const otherModName =
-                index[p.otherPackageId]?.name ?? p.otherPackageId;
               return (
                 <li key={i}>
-                  {renderProblem(selectedMod.name, p.type, otherModName)}
+                  <ProblemDescription
+                    problem={p}
+                    index={index}
+                    onSelectMod={onSelectMod}
+                  />
                 </li>
               );
             })}

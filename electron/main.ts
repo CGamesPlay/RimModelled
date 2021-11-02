@@ -16,6 +16,7 @@ function createWindow() {
     width: 1100,
     height: 700,
     backgroundColor: "#191622",
+    title: "RimModelled",
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       webSecurity: false,

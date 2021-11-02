@@ -1,14 +1,14 @@
 {
-  "name": "rimmodelled",
+  "name": "RimModelled",
   "author": "Ryan Patterson <ry@cgamesplay.com>",
   "version": "1.0.0",
   "description": "A RimWorld Mod Manager",
   "main": "./.webpack/main/index.js",
   "scripts": {
     "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "release": "electron-forge publish",
+    "package": "NODE_ENV=production electron-forge package",
+    "make": "NODE_ENV=production electron-forge make",
+    "release": "NODE_ENV=production electron-forge publish",
     "lint": "eslint . --ext js,ts",
     "test": "jest"
   },
@@ -24,6 +24,7 @@
     "css-loader": "^6.5.0",
     "immer": "^9.0.6",
     "material-ui-popup-state": "^2.0.0",
+    "memoize-one": "^6.0.0",
     "rc-tree": "^5.2.2",
     "react": "17.0.2",
     "react-dom": "17.0.2",
@@ -83,7 +84,7 @@
     "forge": {
       "packagerConfig": {
         "name": "RimModelled",
-        "executableName": "rimmodelled",
+        "executableName": "RimModelled",
         "icon": "assets/icon",
         "extraResource": [
           "assets"

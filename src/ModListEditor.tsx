@@ -3,6 +3,8 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
 import { useId } from "react-id-generator";
 import {
   usePopupState,
@@ -12,9 +14,12 @@ import {
 import Tree, { TreeNode } from "rc-tree";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import SearchIcon from "@mui/icons-material/Search";
 
-import { renderProblem } from "./Problem";
-import { RimworldState, Problem } from "./useRimworld";
+import { Problem, sortMods } from "./Problem";
+import { ProblemDescription } from "./ProblemDescription";
+import { RimworldState, selectProblems } from "./useRimworld";
 
 import "rc-tree/assets/index.css";
 
@@ -24,6 +29,7 @@ type Props = {
   onSelectMod(id: string): void;
   onChangeLoadOrder(modID: string, position: number): void;
   onEnableMod(id: string, loaded: boolean): void;
+  onReplaceCurrentMods(nextMods: Array<[string, boolean]>): void;
 };
 
 export default function ModListEditor({
@@ -32,6 +38,7 @@ export default function ModListEditor({
   onSelectMod,
   onChangeLoadOrder,
   onEnableMod,
+  onReplaceCurrentMods,
 }: Props): React.ReactElement {
   const treeRef = useRef<Tree>(null);
   useEffect(() => {
@@ -46,8 +53,11 @@ export default function ModListEditor({
         <ModListSummary
           index={state.index}
           modCount={modCount}
-          problems={state.problems}
+          problems={selectProblems(state)}
           onSelectMod={onSelectMod}
+          onAutoFix={() =>
+            onReplaceCurrentMods(sortMods(state.currentMods, state.index))
+          }
         />
       </Box>
       <Box sx={{ flex: 1, minHeight: 0 }}>
@@ -70,6 +80,7 @@ type ModListSummaryProps = {
   modCount: number;
   problems: Problem[];
   onSelectMod(id: string): void;
+  onAutoFix(): void;
 };
 
 const ModListSummary = ({
@@ -77,6 +88,7 @@ const ModListSummary = ({
   modCount,
   problems,
   onSelectMod,
+  onAutoFix,
 }: ModListSummaryProps) => {
   const [popupId] = useId(1, "ModListSummary");
   const popupState = usePopupState({ variant: "popover", popupId });
@@ -105,22 +117,33 @@ const ModListSummary = ({
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             transformOrigin={{ vertical: "top", horizontal: "right" }}
           >
-            {problems.map((problem, i) => {
-              const mod = index[problem.packageId].name;
-              const otherMod =
-                index[problem.otherPackageId]?.name ?? problem.otherPackageId;
-              return (
-                <MenuItem
-                  key={i}
-                  onClick={() => {
-                    popupState.close();
-                    onSelectMod(problem.packageId);
-                  }}
-                >
-                  {renderProblem(mod, problem.type, otherMod)}
-                </MenuItem>
-              );
-            })}
+            <MenuItem
+              onClick={() => {
+                popupState.close();
+                onAutoFix();
+              }}
+            >
+              <ListItemIcon>
+                <AutoFixHighIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Automatically resolve issues</ListItemText>
+            </MenuItem>
+            {problems.map((problem, i) => (
+              <MenuItem
+                key={i}
+                onClick={() => {
+                  popupState.close();
+                  onSelectMod(problem.packageId);
+                }}
+              >
+                <ListItemIcon>
+                  <SearchIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>
+                  <ProblemDescription problem={problem} index={index} />
+                </ListItemText>
+              </MenuItem>
+            ))}
           </Menu>
         )}
       </div>

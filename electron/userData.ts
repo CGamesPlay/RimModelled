@@ -90,6 +90,24 @@ export async function loadUserData(rimworld: Rimworld): Promise<UserData> {
     }
   });
 
+  // Remove any mods which have been uninstalled.
+  const allMods = new Set(rimworld.mods.map((m) => m.packageId));
+  function cleanFolder(tree: ModTreeFolder) {
+    let i = 0;
+    while (i < tree.nodes.length) {
+      const node = tree.nodes[i];
+      if (node.type === "item" && !allMods.has(node.id)) {
+        tree.nodes.splice(i, 1);
+        continue;
+      }
+      if (node.type === "folder") {
+        cleanFolder(node);
+      }
+      i++;
+    }
+  }
+  cleanFolder(userData.tree);
+
   return userData;
 }
 
