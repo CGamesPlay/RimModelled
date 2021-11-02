@@ -7,6 +7,20 @@ import xpath from "xpath";
 import { z } from "zod";
 import { shell } from "electron";
 
+// Note: versions are loaded presently but ignored. So few mods use them that
+// it doesn't seem worth the trouble.
+export const ModRef = z.union([
+  z.object({
+    packageId: z.string(),
+    operator: z.enum(["==", ">=", "<="]),
+    version: z.string(),
+  }),
+  z.object({
+    packageId: z.string(),
+  }),
+]);
+export type ModRef = z.infer<typeof ModRef>;
+
 export const Mod = z.object({
   path: z.string(),
   name: z.string(),
@@ -17,6 +31,13 @@ export const Mod = z.object({
   description: z.string().optional(),
   previewURL: z.string().optional(),
   isCritical: z.boolean(),
+  deps: z.object({
+    engines: z.string().array(),
+    requires: ModRef.array(),
+    loadBefore: ModRef.array(),
+    loadAfter: ModRef.array(),
+    incompatibilities: ModRef.array(),
+  }),
 });
 export type Mod = z.infer<typeof Mod>;
 
@@ -24,7 +45,7 @@ export const Rimworld = z.object({
   paths: z.object({
     mods: z.string().array(),
     data: z.string(),
-    bin: z.string(),
+    lib: z.string(),
   }),
   version: z.string(),
   mods: Mod.array(),
@@ -47,9 +68,19 @@ function x(expr: string, doc: Node | undefined): string | undefined {
 // Return the text content of all matching nodes.
 function xs(expr: string, doc: Node | undefined): string[] {
   if (!doc) return [];
-  // @ts-expect-error the expr MUST select a node or else this crashes
+  // @ts-expect-error the expr MUST select nodes or else this crashes
   const node: Node[] = xpath.select(expr, doc);
   return node.map((n) => n.textContent).filter((x): x is string => !!x);
+}
+
+// Return the text content of all matching nodes of the first expression with
+// any matching nodes.
+function xsFallback(exprs: string[], doc: Node | undefined): string[] {
+  for (const expr of exprs) {
+    const ret = xs(expr, doc);
+    if (ret.length != 0) return ret;
+  }
+  return [];
 }
 
 function checkMod(val: unknown): Mod {
@@ -68,6 +99,19 @@ function checkRimworld(val: unknown): Rimworld {
   console.warn("Failed to load Rimworld", ret.error);
   // lol, proceed anyways
   return val as Rimworld;
+}
+
+const knownEntities: Record<string, string> = {
+  "&amp;": "&",
+  "&gt;": ">",
+  "&lt;": "<",
+};
+function unescapeEntities(str: string | undefined): string | undefined {
+  if (str === undefined) return undefined;
+  return str.replace(
+    /&[#a-z0-9]+;/g,
+    (entity) => knownEntities[entity] ?? entity
+  );
 }
 
 export async function loadRimworld(): Promise<Rimworld> {
@@ -91,7 +135,7 @@ export async function loadRimworld(): Promise<Rimworld> {
         process.env["HOME"]!,
         "Library/Application Support/RimWorld"
       ),
-      bin: path.join(
+      lib: path.join(
         process.env["HOME"]!,
         "Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app"
       ),
@@ -101,6 +145,7 @@ export async function loadRimworld(): Promise<Rimworld> {
     activeModIDs: [],
     gameSaves: [],
   };
+  await readVersion(rimworld);
   await scanMods(rimworld);
   await readModConfig(rimworld);
   await scanGameSaves(rimworld);
@@ -109,6 +154,13 @@ export async function loadRimworld(): Promise<Rimworld> {
 
 export function launchRimworld(_rimworld: Rimworld): void {
   shell.openExternal(`steam://run/294100`);
+}
+
+async function readVersion(rimworld: Rimworld) {
+  const versionPath = path.join(rimworld.paths.lib, "Version.txt");
+  const versionText = await fs.readFile(versionPath, "utf-8");
+  const version = versionText.match(/^\d+\.\d+/)?.[0];
+  if (version) rimworld.version = version;
 }
 
 async function scanMods(rimworld: Rimworld) {
@@ -121,13 +173,16 @@ async function scanMods(rimworld: Rimworld) {
     }
   }
   await asyncPool(loadConcurrency, allPaths, async (modPath: string) => {
-    const mod = await loadMod(modPath);
+    const mod = await loadMod(rimworld.version, modPath);
     if (!mod) return;
     rimworld.mods.push(mod);
   });
 }
 
-async function loadMod(modPath: string): Promise<Mod | undefined> {
+async function loadMod(
+  version: string,
+  modPath: string
+): Promise<Mod | undefined> {
   let about: Node, manifest: Node | undefined;
   try {
     const aboutPath = path.join(modPath, "About", "About.xml");
@@ -158,17 +213,111 @@ async function loadMod(modPath: string): Promise<Mod | undefined> {
     .then(() => true)
     .catch(() => false);
   const packageId = x("/ModMetaData/packageId", about)?.toLowerCase();
+  const deps = loadModDeps(version, about, manifest);
   return checkMod({
     path: modPath,
     name: x("/ModMetaData/name", about) ?? path.basename(modPath),
     packageId: x("/ModMetaData/packageId", about)?.toLowerCase(),
     version: x("/Manifest/version", manifest),
-    author: x("/ModMetaData/author", about),
+    author: xs("/ModMetaData/author | /ModMetaData/authors/li", about).join(
+      ", "
+    ),
     url: x("/ModMetaData/url", about),
-    description: x("/ModMetaData/description", about),
+    description: unescapeEntities(
+      unescapeEntities(
+        x(
+          `/ModMetaData/descriptionsByVersion/v${version} | /ModMetaData/description`,
+          about
+        )
+      )
+    ),
     previewURL: hasPreview ? pathToFileURL(previewPath).href : undefined,
     isCritical: packageId === "ludeon.rimworld",
+    deps,
   });
+}
+
+function loadModDeps(
+  version: string,
+  about: Node,
+  manifest: Node | undefined
+): Mod["deps"] {
+  const engines = xs("/ModMetaData/supportedVersions/li", about);
+  const requires = ([] as string[]).concat(
+    xs("/Manifest/dependencies/li", manifest),
+    xsFallback(
+      [
+        `/ModMetaData/modDependenciesByVersion/v${version}/li/packageId`,
+        "/ModMetaData/modDependencies/li/packageId",
+      ],
+      about
+    )
+  );
+  const loadBefore = ([] as string[]).concat(
+    xs("/Manifest/loadBefore/li", manifest),
+    xsFallback(
+      [
+        `/ModMetaData/loadBeforeByVersion/v${version}/li | /ModMetaData/forceLoadBefore/li`,
+        "/ModMetaData/loadBefore/li | /ModMetaData/forceLoadBefore/li",
+      ],
+      about
+    )
+  );
+  const loadAfter = ([] as string[]).concat(
+    xs("/Manifest/loadAfter/li", manifest),
+    xsFallback(
+      [
+        `/ModMetaData/loadAfterByVersion/v${version}/li | /ModMetaData/forceLoadAfter/li`,
+        "/ModMetaData/loadAfter/li | /ModMetaData/forceLoadAfter/li",
+      ],
+      about
+    )
+  );
+  const incompatibilities = ([] as string[]).concat(
+    xs("/Manifest/incompatibleWith/li", manifest),
+    xsFallback(
+      [
+        `/ModMetaData/incompatibleWithByVersion/v${version}/li`,
+        "/ModMetaData/incompatibleWith/li",
+      ],
+      about
+    )
+  );
+  return {
+    engines,
+    requires: parseModRefs(requires),
+    loadBefore: parseModRefs(loadBefore),
+    loadAfter: parseModRefs(loadAfter),
+    incompatibilities: parseModRefs(incompatibilities),
+  };
+}
+
+function parseModRefs(input: string[]): ModRef[] {
+  const refs = input.map((refStr): ModRef => {
+    refStr = refStr.toLowerCase();
+    if (refStr === "core") refStr = "ludeon.rimworld";
+    const parts = refStr.split(" ");
+    if (parts.length === 1) return { packageId: refStr };
+    return {
+      packageId: parts[0],
+      operator: parts[1] as "==" | ">=" | "<=",
+      version: parts[2],
+    };
+  });
+  for (let i = 0; i < refs.length; i++) {
+    for (let j = i + 1; j < refs.length; j++) {
+      if (refs[i].packageId === refs[j].packageId) {
+        // Deduping
+        if (!("version" in refs[i]) && "version" in refs[j]) {
+          // Replace i with j
+          refs[i] = refs[j];
+        }
+        // Remove the duplicate
+        refs.splice(j, 1);
+      }
+    }
+  }
+  return refs;
 }
 
 async function readModConfig(rimworld: Rimworld) {
@@ -185,10 +334,6 @@ async function readModConfig(rimworld: Rimworld) {
     console.warn("Cannot load active mod list:", e);
     return;
   }
-  rimworld.version = x("/ModsConfigData/version", modConfig)?.replace(
-    /^(\d+\.\d+).*$/,
-    "$1"
-  ) as string;
   rimworld.activeModIDs = xs("/ModsConfigData/activeMods/li", modConfig);
 }
 

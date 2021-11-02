@@ -114,12 +114,35 @@ export default function App({
                   onRemoveFolder={actions.removeFolder}
                 />
               ) : (
-                <div>select a mod</div>
+                <EmptyState />
               )}
             </Box>
           </Grid>
         </Grid>
       </Box>
     </>
+  );
+}
+
+function EmptyState() {
+  return (
+    <Box sx={{ height: "100%", pl: 2, pb: 2 }}>
+      <Box
+        sx={{
+          height: "100%",
+          border: 8,
+          borderColor: "grey.200",
+          color: "grey.300",
+          borderRadius: 8,
+          p: 4,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+        style={{ borderStyle: "dashed" }}
+      >
+        <Typography variant="h2">RimModelled</Typography>
+      </Box>
+    </Box>
   );
 }
