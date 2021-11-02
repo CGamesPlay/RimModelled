@@ -6,7 +6,7 @@ import Typography from "@mui/material/Typography";
 import Toolbar from "@mui/material/Toolbar";
 
 import { RimworldState, Actions } from "./useRimworld";
-import { locateFolder } from "./treeUtils";
+import { locateItem } from "./treeUtils";
 import ModListMenu from "./ModListMenu";
 import ModTree from "./ModTree";
 import ModListEditor from "./ModListEditor";
@@ -20,13 +20,13 @@ export default function App({
   state: RimworldState;
   actions: Actions;
 }): React.ReactElement {
-  const [selectedID, setSelectedID] = useState<string | undefined>(undefined);
-  const selectedMod = state.rimworld.mods.find(
-    (m) => m.packageId === selectedID
+  const [selectedPath, setSelectedPath] = useState<string | undefined>(
+    undefined
   );
-  const selectedFolder = selectedID?.startsWith("dir:")
-    ? locateFolder(state.tree, selectedID)
+  const selectedLoc = selectedPath
+    ? locateItem(state.tree, selectedPath)
     : undefined;
+  const selectedNode = selectedLoc?.[0].nodes[selectedLoc?.[1]];
 
   return (
     <>
@@ -69,17 +69,17 @@ export default function App({
             <Box sx={{ pl: 1, height: "100%" }}>
               <ModTree
                 state={state}
-                selectedModID={selectedID}
-                onSelectMod={setSelectedID}
+                selectedModID={selectedPath}
+                onSelectMod={setSelectedPath}
                 onEnableMod={actions.enableMod}
                 onAddFolder={(name) => {
                   actions.addFolder(name);
-                  setSelectedID(`dir:${state.tree.name}:${name}`);
+                  setSelectedPath(`dir:${state.tree.name}:${name}`);
                 }}
                 onMoveNode={(srcPath, destPath) => {
                   actions.moveNode(srcPath, destPath);
                   if (srcPath.startsWith("dir:")) {
-                    setSelectedID(
+                    setSelectedPath(
                       `${destPath}:${srcPath.slice(
                         srcPath.lastIndexOf(":") + 1
                       )}`
@@ -92,30 +92,32 @@ export default function App({
           <Grid item xs={3} sx={{ height: "100%" }}>
             <ModListEditor
               state={state}
-              selectedModID={selectedID}
-              onSelectMod={setSelectedID}
+              selectedModID={selectedPath}
+              onSelectMod={setSelectedPath}
               onChangeLoadOrder={actions.changeLoadOrder}
               onEnableMod={actions.enableMod}
             />
           </Grid>
           <Grid item xs={6} sx={{ height: "100%" }}>
             <Box pr={2} pt={2} sx={{ height: "100%", overflowY: "scroll" }}>
-              {selectedMod ? (
+              {selectedNode?.type === "item" ? (
                 <ModDetails
                   problems={state.problems}
                   index={state.index}
-                  selectedMod={selectedMod}
+                  selectedNode={selectedNode}
+                  setNodeNotes={actions.setNodeNotes}
                 />
-              ) : selectedFolder ? (
+              ) : selectedNode?.type === "folder" ? (
                 <FolderDetails
-                  path={selectedID!}
-                  folder={selectedFolder}
+                  path={selectedPath!}
+                  folder={selectedNode}
                   onRenameFolder={(path: string, name: string) => {
                     actions.renameFolder(path, name);
                     const dirname = path.substring(0, path.lastIndexOf(":"));
-                    setSelectedID(`${dirname}:${name}`);
+                    setSelectedPath(`${dirname}:${name}`);
                   }}
                   onRemoveFolder={actions.removeFolder}
+                  setNodeNotes={actions.setNodeNotes}
                 />
               ) : (
                 <EmptyState />

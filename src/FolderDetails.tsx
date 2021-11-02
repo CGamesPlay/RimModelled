@@ -7,6 +7,7 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import ListItemText from "@mui/material/ListItemText";
 import ListItemIcon from "@mui/material/ListItemIcon";
+import TextField from "@mui/material/TextField";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import DriveFileRenameOutlineIcon from "@mui/icons-material/DriveFileRenameOutline";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -24,6 +25,7 @@ type Props = {
   folder: ModTreeFolder;
   onRenameFolder(path: string, name: string): void;
   onRemoveFolder(path: string): void;
+  setNodeNotes(path: string, notes: string): void;
 };
 
 export default function FolderDetails({
@@ -31,26 +33,18 @@ export default function FolderDetails({
   folder,
   onRenameFolder,
   onRemoveFolder,
+  setNodeNotes,
 }: Props): React.ReactElement | null {
   if (folder.type !== "folder") return null;
 
   const itemCount = countItems(folder);
-  const [menuId] = useId(1, "FolderDetails");
+  const [menuId, textFieldId] = useId(2, "FolderDetails");
   const menuPopup = usePopupState({ variant: "popover", popupId: menuId });
   const [openModal, setOpenModal] = useState<"rename" | undefined>(undefined);
 
   return (
-    <Box sx={{ p: 2, pt: "40px", display: "flex" }}>
-      <Box sx={{ flex: 1 }}>
-        <Typography variant="h6">
-          <FolderOutlinedIcon sx={{ verticalAlign: "text-bottom", mr: 1 }} />
-          {folder.name}
-        </Typography>
-        <Typography variant="subtitle1">
-          Folder with {itemCount} mods.
-        </Typography>
-      </Box>
-      <Box>
+    <Box sx={{ p: 2, pt: "40px" }}>
+      <Box sx={{ float: "right" }}>
         <IconButton {...bindTrigger(menuPopup)}>
           <MoreVertIcon />
         </IconButton>
@@ -83,6 +77,26 @@ export default function FolderDetails({
           </MenuItem>
         </Menu>
       </Box>
+
+      <Typography variant="h6">
+        <FolderOutlinedIcon sx={{ verticalAlign: "text-bottom", mr: 1 }} />
+        {folder.name}
+      </Typography>
+      <Typography variant="subtitle1">Folder with {itemCount} mods.</Typography>
+      <Box py={2}>
+        <TextField
+          variant="standard"
+          multiline
+          fullWidth
+          label="Notes"
+          id={textFieldId}
+          defaultValue={folder.notes}
+          onBlur={(e) => {
+            setNodeNotes(path, e.target.value);
+          }}
+        />
+      </Box>
+
       <TextFieldDialog
         key={folder.name}
         title="Rename Folder"

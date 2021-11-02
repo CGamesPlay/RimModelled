@@ -1,8 +1,11 @@
+import { useId } from "react-id-generator";
 import Paper from "@mui/material/Paper";
 import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
 import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
 import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
 
 import { Problem } from "./useRimworld";
 import { renderProblem } from "./Problem";
@@ -10,21 +13,25 @@ import { renderProblem } from "./Problem";
 type Props = {
   problems: Problem[];
   index: Record<string, Mod>;
-  selectedMod: Mod;
+  selectedNode: ModTreeItem;
+  setNodeNotes(path: string, notes: string): void;
 };
 
 export default function ModDetails({
   problems,
   index,
-  selectedMod,
+  selectedNode,
+  setNodeNotes,
 }: Props): React.ReactElement {
+  const [textFieldId] = useId(1, "ModDetailsNotes");
+  const selectedMod = index[selectedNode.id];
+
   const myProblems = problems.filter(
     (p) => p.packageId === selectedMod.packageId
   );
-  console.log(selectedMod);
   return (
-    <div>
-      <Paper sx={{ overflow: "hidden" }}>
+    <div key={selectedMod.packageId}>
+      <Paper sx={{ overflow: "hidden", pb: 1 }}>
         <Box
           component="img"
           sx={{
@@ -52,6 +59,20 @@ export default function ModDetails({
           >
             Version: {selectedMod.version ?? "N/A"}
           </Typography>
+        </Box>
+        <Divider />
+        <Box pt={2} pb={1} px={2}>
+          <TextField
+            variant="standard"
+            multiline
+            fullWidth
+            label="Notes"
+            id={textFieldId}
+            defaultValue={selectedNode.notes}
+            onBlur={(e) => {
+              setNodeNotes(selectedMod.packageId, e.target.value);
+            }}
+          />
         </Box>
       </Paper>
       {myProblems.length > 0 && (

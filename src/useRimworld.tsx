@@ -164,6 +164,14 @@ const actions = {
     srcLoc[0].nodes.splice(srcLoc[1], 1);
     dest.nodes.push(src);
   },
+
+  setNodeNotes(state: RimworldState, path: string, notes: string) {
+    const loc = locateItem(state.tree, path);
+    if (!loc) return;
+    const node = loc[0].nodes[loc[1]];
+    if (notes === "") delete node.notes;
+    else node.notes = notes;
+  },
 };
 
 type StateUpdateFunc<F> = F extends (x: any, ...args: infer P) => unknown

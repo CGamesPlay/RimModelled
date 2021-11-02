@@ -15,15 +15,22 @@ export type ModList = z.infer<typeof ModList>;
 export const ModTreeItem = z.object({
   type: z.literal("item"),
   id: z.string(),
+  notes: z.string().optional(),
 });
 export type ModTreeItem = z.infer<typeof ModTreeItem>;
 
-export type ModTreeFolder = { type: "folder"; name: string; nodes: ModTree[] };
+export type ModTreeFolder = {
+  type: "folder";
+  name: string;
+  nodes: ModTree[];
+  notes?: string;
+};
 export const ModTreeFolder: z.ZodSchema<ModTreeFolder> = z.lazy(() =>
   z.object({
     type: z.literal("folder"),
     name: z.string(),
     nodes: ModTree.array(),
+    notes: z.string().optional(),
   })
 );
 
