@@ -1,13 +1,6 @@
-import React, { useState, useEffect } from "react";
-import mergeRefs from "react-merge-refs";
+import React, { useState } from "react";
 import { useId } from "react-id-generator";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import Menu from "@mui/material/Menu";
@@ -23,6 +16,8 @@ import {
   bindTrigger,
   bindMenu,
 } from "material-ui-popup-state/hooks";
+
+import TextFieldDialog from "./TextFieldDialog";
 
 type Props = {
   path: string;
@@ -88,9 +83,11 @@ export default function FolderDetails({
           </MenuItem>
         </Menu>
       </Box>
-      <FolderNameDialog
+      <TextFieldDialog
         key={folder.name}
-        operation="rename"
+        title="Rename Folder"
+        fieldLabel="Folder Name"
+        actionLabel="Rename"
         initialValue={folder.name}
         open={openModal === "rename"}
         onClose={() => setOpenModal(undefined)}
@@ -110,69 +107,3 @@ function countItems(node: ModTree): number {
     return 1;
   }
 }
-
-type FolderNameDialogProps = {
-  operation: "rename" | "create";
-  initialValue?: string;
-  open: boolean;
-  onClose(): void;
-  onSubmit(value: string): void;
-};
-
-export function FolderNameDialog({
-  operation,
-  initialValue,
-  open,
-  onClose,
-  onSubmit,
-}: FolderNameDialogProps): React.ReactElement {
-  const [value, setValue] = useState<string>(initialValue ?? "");
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    onSubmit(value);
-  }
-
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <form onSubmit={handleSubmit}>
-        <DialogTitle>
-          {operation === "rename" ? "Rename" : "New"} Folder
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            InputProps={{
-              // @ts-expect-error it doesn't like the ref
-              inputComponent: AutoselectInput,
-            }}
-            autoFocus
-            margin="dense"
-            label="Folder Name"
-            fullWidth
-            variant="standard"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained">
-            {operation === "rename" ? "Rename" : "Create"}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
-  );
-}
-
-const AutoselectInput = React.forwardRef<HTMLInputElement>(
-  (props: React.ComponentProps<"input">, ref) => {
-    const [node, setRef] = useState<HTMLInputElement | null>(null);
-
-    useEffect(() => {
-      node?.select();
-    }, [node]);
-
-    return <input ref={mergeRefs([setRef, ref])} {...props} />;
-  }
-);

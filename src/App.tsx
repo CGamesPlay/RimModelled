@@ -55,6 +55,8 @@ export default function App({
             state={state}
             reload={actions.reload}
             replaceCurrentMods={actions.replaceCurrentMods}
+            saveModList={actions.saveModList}
+            deleteModList={actions.deleteModList}
           />
         </Toolbar>
         <Grid

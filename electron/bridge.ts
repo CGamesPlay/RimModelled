@@ -1,4 +1,4 @@
-import { contextBridge } from "electron";
+import { contextBridge, clipboard } from "electron";
 
 import {
   loadRimworld,
@@ -34,6 +34,12 @@ export const api = {
   },
   readModsFromSave(name: string): Promise<string[] | undefined> {
     return readModsFromSave(rimworld(), name.replace(/[/\\:]/g, ""));
+  },
+  writeClipboardText(value: string): void {
+    clipboard.writeText(value);
+  },
+  readClipboardText(): string {
+    return clipboard.readText();
   },
 };
 

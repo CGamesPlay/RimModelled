@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { useId } from "react-id-generator";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import IconButton from "@mui/material/IconButton";
@@ -10,7 +9,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 
 import { RimworldState } from "./useRimworld";
-import { FolderNameDialog } from "./FolderDetails";
+import TextFieldDialog from "./TextFieldDialog";
 
 import "rc-tree/assets/index.css";
 
@@ -200,10 +199,12 @@ function AddFolderButton({ onAddFolder }: Pick<Props, "onAddFolder">) {
       <IconButton onClick={() => setOpen(true)}>
         <AddIcon />
       </IconButton>
-      <FolderNameDialog
+      <TextFieldDialog
         key={key}
-        operation="create"
-        initialValue={"New Folder"}
+        title="New Folder"
+        fieldLabel="Folder Name"
+        actionLabel="Create"
+        initialValue="New Folder"
         open={isOpen}
         onClose={() => {
           setOpen(false);

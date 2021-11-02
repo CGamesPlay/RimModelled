@@ -42,6 +42,21 @@ const actions = {
     state.currentMods = nextMods;
   },
 
+  saveModList(
+    state: RimworldState,
+    name: string,
+    mods: Array<[string, boolean]>
+  ) {
+    const existing = state.lists.findIndex((l) => l.name === name);
+    if (existing !== -1) state.lists.splice(existing, 1);
+    state.lists.unshift({ name, mods });
+  },
+
+  deleteModList(state: RimworldState, name: string) {
+    const existing = state.lists.findIndex((l) => l.name === name);
+    if (existing !== -1) state.lists.splice(existing, 1);
+  },
+
   addFolder(state: RimworldState, name: string) {
     const rootNodes = (state.tree as any).nodes as ModTree[];
     rootNodes.push({ type: "folder", name, nodes: [] });
