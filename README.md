@@ -33,3 +33,8 @@ If you would like to see something in RimModelled, let me know via [an issue](ht
 
 RimModelled is open source software licensed under the MIT license. Contributions from the RimWorld community are welcomed, and all contributors are expected to follow the guidelines set forth in the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
 
+## FAQ
+
+### How does this compare to Fluffy Mod Manager?
+
+You can freely use both alongside each other, and they won't conflict (just make sure to reload RimModelled after quitting RimWorld). RimModelled provides a variety of features that aren't in Fluffy Mod Manager, such as folders and notes. RimModelled also exists outside of RimWorld, so you can edit your mod list without waiting for RimWorld to boot up. This is especially useful when combined with the "import mods from save" feature when you are switching between colonies. RimModelled does not have the cross-promotion features, nor the deeper workshop integration that Fluffy Mod Manager has. RimModelled does not have colored mod lists.
