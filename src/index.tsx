@@ -14,6 +14,20 @@ function Loader() {
     window.RimModelled.setDirtyState(isDirty);
   }, [isDirty]);
 
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if ((event.target as HTMLElement).tagName.toLowerCase() === "a") {
+        const target = event.target as HTMLAnchorElement;
+        event.preventDefault();
+        window.RimModelled.openExternal(target.href);
+      }
+    }
+    document.body.addEventListener("click", handleClick);
+    return () => {
+      document.body.removeEventListener("click", handleClick);
+    };
+  });
+
   if (!state.loaded) return <div />;
   return <App state={state.state} actions={actions} isDirty={isDirty} />;
 }

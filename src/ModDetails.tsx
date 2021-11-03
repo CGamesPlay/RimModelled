@@ -8,6 +8,7 @@ import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 
 import { Problem, ProblemDescription } from "./ProblemDescription";
+import UnityLabelFormatter from "./UnityLabelFormatter";
 
 type Props = {
   problems: Problem[];
@@ -60,6 +61,18 @@ export default function ModDetails({
           >
             Version: {selectedMod.version ?? "N/A"}
           </Typography>
+          {selectedMod.url && (
+            <Typography
+              variant="subtitle1"
+              noWrap
+              sx={{ display: "inline", pr: 2 }}
+            >
+              Link:{" "}
+              <a href={selectedMod.url} title={selectedMod.url}>
+                Home Page
+              </a>
+            </Typography>
+          )}
         </Box>
         <Divider />
         <Box pt={2} pb={1} px={2}>
@@ -94,7 +107,9 @@ export default function ModDetails({
           </Box>
         </Alert>
       )}
-      <Box p={2}>{selectedMod.description}</Box>
+      <Box p={2}>
+        <UnityLabelFormatter content={selectedMod.description} />
+      </Box>
     </div>
   );
 }

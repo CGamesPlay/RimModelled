@@ -1,4 +1,4 @@
-import { contextBridge, clipboard, ipcRenderer } from "electron";
+import { contextBridge, clipboard, ipcRenderer, shell } from "electron";
 
 import {
   loadRimworld,
@@ -17,6 +17,9 @@ const rimworld = (): Rimworld => {
 export const api = {
   setDirtyState(isDirty: boolean): void {
     ipcRenderer.send("isDirty", isDirty);
+  },
+  openExternal(url: string): void {
+    shell.openExternal(url);
   },
   async load(): Promise<Rimworld> {
     _rimworld = await loadRimworld();

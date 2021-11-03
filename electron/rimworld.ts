@@ -85,6 +85,18 @@ function xsFallback(exprs: string[], doc: Node | undefined): string[] {
   return [];
 }
 
+// Ensures that the URL is an absolute URL to a web site.
+function parseUrl(input: string | undefined): string | undefined {
+  try {
+    if (input === undefined) return undefined;
+    const url = new URL(input);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+    return url.href;
+  } catch (e) {
+    return undefined;
+  }
+}
+
 function checkMod(val: unknown): Mod {
   const ret = Mod.safeParse(val);
   if (ret.success) return ret.data;
@@ -101,19 +113,6 @@ function checkRimworld(val: unknown): Rimworld {
   console.warn("Failed to load Rimworld", ret.error);
   // lol, proceed anyways
   return val as Rimworld;
-}
-
-const knownEntities: Record<string, string> = {
-  "&amp;": "&",
-  "&gt;": ">",
-  "&lt;": "<",
-};
-function unescapeEntities(str: string | undefined): string | undefined {
-  if (str === undefined) return undefined;
-  return str.replace(
-    /&[#a-z0-9]+;/g,
-    (entity) => knownEntities[entity] ?? entity
-  );
 }
 
 export async function loadRimworld(): Promise<Rimworld> {
@@ -215,7 +214,7 @@ async function loadMod(
     .then(() => true)
     .catch(() => false);
   const packageId = x("/ModMetaData/packageId", about)?.toLowerCase();
-  const deps = loadModDeps(version, about, manifest, packageId);
+  const deps = loadModDeps(version, about, manifest, packageId!);
   return checkMod({
     path: modPath,
     name: x("/ModMetaData/name", about) ?? path.basename(modPath),
@@ -224,14 +223,10 @@ async function loadMod(
     author: xs("/ModMetaData/author | /ModMetaData/authors/li", about).join(
       ", "
     ),
-    url: x("/ModMetaData/url", about),
-    description: unescapeEntities(
-      unescapeEntities(
-        x(
-          `/ModMetaData/descriptionsByVersion/v${version} | /ModMetaData/description`,
-          about
-        )
-      )
+    url: parseUrl(x("/ModMetaData/url", about)),
+    description: x(
+      `/ModMetaData/descriptionsByVersion/v${version} | /ModMetaData/description`,
+      about
     ),
     previewURL: hasPreview ? pathToFileURL(previewPath).href : undefined,
     isCritical: packageId === corePackageId,

@@ -17,6 +17,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
+import SaveIcon from "@mui/icons-material/Save";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ContentPasteIcon from "@mui/icons-material/ContentPaste";
 import {
@@ -30,6 +32,7 @@ import TextFieldDialog from "./TextFieldDialog";
 
 type Props = {
   state: RimworldState;
+  isDirty: boolean;
   reload(): void;
   save(launchAfter: boolean): void;
   replaceCurrentMods(mods: Array<[string, boolean]>): void;
@@ -39,6 +42,7 @@ type Props = {
 
 export default function ModListMenu({
   state,
+  isDirty,
   reload,
   save,
   replaceCurrentMods,
@@ -89,6 +93,17 @@ export default function ModListMenu({
     const str = window.RimModelled.readClipboardText();
     const mods = stringToMods(str);
     replaceCurrentMods(mods.map((x) => [x[1], true]));
+  }
+
+  function handleReload() {
+    if (
+      isDirty &&
+      confirm(
+        "This will throw away the changes you have made. Are you sure you want to reload?"
+      )
+    ) {
+      reload();
+    }
   }
 
   return (
@@ -169,9 +184,17 @@ export default function ModListMenu({
             save(false);
           }}
         >
-          Save without launching
+          <ListItemIcon>
+            <SaveIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Save without launching</ListItemText>
         </MenuItem>
-        <MenuItem onClick={reload}>Reload RimModelled</MenuItem>
+        <MenuItem onClick={handleReload}>
+          <ListItemIcon>
+            <RefreshIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Reload RimModelled</ListItemText>
+        </MenuItem>
       </Menu>
 
       <Dialog
