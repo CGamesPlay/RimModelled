@@ -56,7 +56,9 @@ export default function ModListEditor({
           problems={selectProblems(state)}
           onSelectMod={onSelectMod}
           onAutoFix={() =>
-            onReplaceCurrentMods(sortMods(state.currentMods, state.index))
+            onReplaceCurrentMods(
+              sortMods(state.currentMods, state.index, state.rimworld.version)
+            )
           }
         />
       </Box>
@@ -209,12 +211,12 @@ const ModListTree = React.memo(
           {currentMods
             .filter((t) => t[1])
             .map((t) => {
-              const mod = index[t[0]];
+              const mod: Mod | undefined = index[t[0]];
               return (
                 <TreeNode
-                  title={mod.name}
+                  title={mod?.name ?? t[0]}
                   key={t[0]}
-                  disableCheckbox={mod.isCritical}
+                  disableCheckbox={mod?.isCritical ?? false}
                 />
               );
             })}

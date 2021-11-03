@@ -7,7 +7,9 @@ function renderProblem(
   problem: ProblemType,
   otherName: React.ReactNode
 ): React.ReactNode {
-  if (problem === "badEngine") {
+  if (problem === "missing") {
+    return <>{name} is not installed.</>;
+  } else if (problem === "badEngine") {
     return <>{name} is incompatible with this version of RimWorld.</>;
   } else if (problem === "incompatibleWith") {
     return (

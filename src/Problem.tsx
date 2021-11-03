@@ -1,4 +1,5 @@
 export type ProblemType =
+  | "missing"
   | "badEngine"
   | "incompatibleWith"
   | "wantsBefore"
@@ -22,6 +23,10 @@ export function listProblems(
 
   modIDs.forEach((packageId, i) => {
     const mod = index[packageId];
+    if (!mod) {
+      result.push({ packageId, type: "missing", otherPackageId: "" });
+      return;
+    }
 
     if (
       mod.deps.engines.length > 0 &&
@@ -80,41 +85,43 @@ export function listProblems(
 
 export function sortMods(
   mods: Array<[string, boolean]>,
-  index: Record<string, Mod>
+  index: Record<string, Mod>,
+  rimworldVersion: string
 ): Array<[string, boolean]> {
   type Node = {
     id: string;
     enabled: boolean;
-    deps: string[];
+    deps: Array<{ id: string; required: boolean }>;
     visited: boolean;
   };
   const nodes = new Map<string, Node>(
-    mods.map(([id, enabled]) => [id, { id, enabled, deps: [], visited: false }])
+    mods.map(([id, _]) => [
+      id,
+      { id, enabled: false, deps: [], visited: false },
+    ])
   );
   function getNode(id: string): Node {
     let node = nodes.get(id);
     if (node) return node;
-    // This must be a reference to a mod which isn't installed.
+    // This must be a reference to a mod which isn't activated.
     node = { id, enabled: false, deps: [], visited: false };
     nodes.set(id, node);
     return node;
   }
 
-  mods.forEach(([id, _]) => {
-    const mod = index[id];
-    if (!mod) return;
-    const node = getNode(id);
+  Object.values(index).forEach((mod) => {
+    const node = getNode(mod.packageId);
 
     mod.deps.requires.forEach((ref) => {
-      node.deps.push(ref.packageId);
+      node.deps.push({ id: ref.packageId, required: true });
     });
 
     mod.deps.loadAfter.forEach((ref) => {
-      node.deps.push(ref.packageId);
+      node.deps.push({ id: ref.packageId, required: false });
     });
 
     mod.deps.loadBefore.forEach((ref) => {
-      getNode(ref.packageId).deps.push(id);
+      getNode(ref.packageId).deps.push({ id: mod.packageId, required: false });
     });
   });
 
@@ -122,10 +129,33 @@ export function sortMods(
   function visit(node: Node) {
     if (node.visited) return;
     node.visited = true;
-    node.deps.forEach((n) => visit(getNode(n)));
+    node.deps.forEach((n) => visit(getNode(n.id)));
     result.push(node);
   }
-  mods.forEach((t) => visit(getNode(t[0])));
+  function enable(node: Node) {
+    if (node.enabled) return;
+    node.enabled = true;
+    node.deps.forEach((n) => {
+      if (n.required) enable(getNode(n.id));
+    });
+  }
+  mods.forEach(([id, enabled]) => {
+    const node = getNode(id);
+    visit(node);
+    if (enabled) enable(node);
+  });
 
-  return result.map((n) => [n.id, n.enabled]);
+  return result.map((n) => {
+    const mod = index[n.id];
+    // Filter out incompatible mods.
+    if (
+      mod &&
+      mod.deps.engines.length > 0 &&
+      !mod.deps.engines.includes(rimworldVersion)
+    ) {
+      n.enabled = false;
+    }
+
+    return [n.id, n.enabled];
+  });
 }

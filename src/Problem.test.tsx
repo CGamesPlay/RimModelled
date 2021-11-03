@@ -1,5 +1,7 @@
 import { sortMods } from "./Problem";
 
+const rwVersion = "1.3";
+
 const modIndex: Record<string, Mod> = {
   "brrainz.harmony": {
     path: "...",
@@ -134,6 +136,21 @@ const modIndex: Record<string, Mod> = {
       incompatibilities: [],
     },
   },
+  "standalone.dep": {
+    path: "...",
+    name: "Standalone Dep",
+    packageId: "standalone.dep",
+    version: "1.0",
+    author: "n00b",
+    isCritical: false,
+    deps: {
+      engines: [],
+      requires: [{ packageId: "standalone.lib" }],
+      loadBefore: [],
+      loadAfter: [],
+      incompatibilities: [],
+    },
+  },
   "badmod.liba": {
     path: "...",
     name: "Bad Mod A",
@@ -178,27 +195,30 @@ describe("sortMods", () => {
       "unlimitedhugs.hugslib",
       "ludeon.rimworld",
     ]);
+    // Note that the loadBefores
     const expected = makeList([
       "brrainz.harmony",
+      // Added because it's loadBefore ludeon.rimworld
+      ["me.samboycoding.betterloading", false],
       "ludeon.rimworld",
-      // This is added as a disabled entry in the correct place.
+      // Added because hugslib is loadAfter it.
       ["ludeon.rimworld.royalty", false],
       "unlimitedhugs.hugslib",
     ]);
-    const actual = sortMods(mods, modIndex);
+    const actual = sortMods(mods, modIndex, rwVersion);
     expect(actual).toEqual(expected);
   });
 
   it("preserves relative order 1", () => {
     const mods = makeList(["standalone.a", "standalone.b"]);
     const expected = makeList(["standalone.a", "standalone.b"]);
-    const actual = sortMods(mods, modIndex);
+    const actual = sortMods(mods, modIndex, rwVersion);
     expect(actual).toEqual(expected);
   });
   it("preserves relative order 2", () => {
     const mods = makeList(["standalone.b", "standalone.a"]);
     const expected = makeList(["standalone.b", "standalone.a"]);
-    const actual = sortMods(mods, modIndex);
+    const actual = sortMods(mods, modIndex, rwVersion);
     expect(actual).toEqual(expected);
   });
 
@@ -206,7 +226,37 @@ describe("sortMods", () => {
     const mods = makeList(["badmod.liba", "badmod.libb"]);
     // It rotates the list around, but doesn't break.
     const expected = makeList(["badmod.libb", "badmod.liba"]);
-    const actual = sortMods(mods, modIndex);
+    const actual = sortMods(mods, modIndex, rwVersion);
+    expect(actual).toEqual(expected);
+  });
+
+  it("activates hidden mods", () => {
+    const mods = makeList([
+      ["brrainz.harmony", false],
+      "me.samboycoding.betterloading",
+    ]);
+    const expected = makeList([
+      "brrainz.harmony",
+      "me.samboycoding.betterloading",
+    ]);
+    const actual = sortMods(mods, modIndex, rwVersion);
+    expect(actual).toEqual(expected);
+  });
+
+  it("enables missing mods", () => {
+    const mods = makeList(["me.samboycoding.betterloading"]);
+    const expected = makeList([
+      "brrainz.harmony",
+      "me.samboycoding.betterloading",
+    ]);
+    const actual = sortMods(mods, modIndex, rwVersion);
+    expect(actual).toEqual(expected);
+  });
+
+  it("enables uninstalled mods", () => {
+    const mods = makeList(["standalone.dep"]);
+    const expected = makeList(["standalone.lib", "standalone.dep"]);
+    const actual = sortMods(mods, modIndex, rwVersion);
     expect(actual).toEqual(expected);
   });
 });

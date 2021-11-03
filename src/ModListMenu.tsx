@@ -77,7 +77,10 @@ export default function ModListMenu({
 
   function handleSaveModList(name: string) {
     setOpenModal(undefined);
-    saveModList(name, state.currentMods);
+    saveModList(
+      name,
+      state.currentMods.filter((t) => t[1])
+    );
   }
 
   function handleDeleteModList(name: string) {

@@ -18,6 +18,12 @@ function Loader() {
     function handleClick(event: MouseEvent) {
       if ((event.target as HTMLElement).tagName.toLowerCase() === "a") {
         const target = event.target as HTMLAnchorElement;
+        try {
+          const url = new URL(target.href, window.location);
+          if (url.origin === location.origin) return;
+        } catch (e) {
+          // do nothing
+        }
         event.preventDefault();
         window.RimModelled.openExternal(target.href);
       }

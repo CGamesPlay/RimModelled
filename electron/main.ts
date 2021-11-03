@@ -50,7 +50,7 @@ function createWindow() {
           message: "There are unsaved changes to your mod lists.",
         })
         .then(({ response }) => {
-          if (response === 0) {
+          if (response === 1) {
             mainWindow!.destroy();
             if (isQuitting) app.quit();
           } else {
