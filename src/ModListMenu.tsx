@@ -100,7 +100,7 @@ export default function ModListMenu({
 
   function handleReload() {
     if (
-      isDirty &&
+      !isDirty ||
       confirm(
         "This will throw away the changes you have made. Are you sure you want to reload?"
       )

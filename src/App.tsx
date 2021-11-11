@@ -9,7 +9,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import Fade from "@mui/material/Fade";
 import Tooltip from "@mui/material/Tooltip";
 
-import { RimworldState, Actions, selectProblems } from "./useRimworld";
+import { RimworldState, Actions } from "./useRimworld";
 import { locateItem } from "./treeUtils";
 import ModListMenu from "./ModListMenu";
 import ModTree from "./ModTree";
@@ -123,8 +123,7 @@ export default function App({
             >
               {selectedNode?.type === "item" ? (
                 <ModDetails
-                  problems={selectProblems(state)}
-                  index={state.index}
+                  state={state}
                   selectedNode={selectedNode}
                   onSelectMod={setSelectedPath}
                   setNodeNotes={actions.setNodeNotes}

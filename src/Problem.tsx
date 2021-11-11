@@ -12,6 +12,43 @@ export type Problem = {
   otherPackageId: string;
 };
 
+/// List the problems associated with the single mod listed. This will identify
+/// incompatibilities with enabled mods and engine versions, but does not
+/// examine the load order.
+export function listModProblems(
+  packageId: string,
+  mods: Array<[string, boolean]>,
+  index: Record<string, Mod>,
+  rimworldVersion: string
+): Problem[] {
+  const result: Problem[] = [];
+
+  const mod = index[packageId];
+  if (!mod) {
+    return [{ packageId, type: "missing", otherPackageId: "" }];
+  }
+
+  if (
+    mod.deps.engines.length > 0 &&
+    !mod.deps.engines.includes(rimworldVersion)
+  ) {
+    result.push({ packageId, type: "badEngine", otherPackageId: "" });
+  }
+
+  mod.deps.incompatibilities.forEach((ref) => {
+    const mod = mods.find((t) => t[0] === ref.packageId && t[1]);
+    if (mod) {
+      result.push({
+        packageId,
+        type: "incompatibleWith",
+        otherPackageId: ref.packageId,
+      });
+    }
+  });
+
+  return result;
+}
+
 export function listProblems(
   mods: Array<[string, boolean]>,
   index: Record<string, Mod>,
@@ -22,17 +59,15 @@ export function listProblems(
   const modOrder = Object.fromEntries(modIDs.map((id, i) => [id, i]));
 
   modIDs.forEach((packageId, i) => {
+    result.splice(
+      result.length,
+      0,
+      ...listModProblems(packageId, mods, index, rimworldVersion)
+    );
+
     const mod = index[packageId];
     if (!mod) {
-      result.push({ packageId, type: "missing", otherPackageId: "" });
       return;
-    }
-
-    if (
-      mod.deps.engines.length > 0 &&
-      !mod.deps.engines.includes(rimworldVersion)
-    ) {
-      result.push({ packageId, type: "badEngine", otherPackageId: "" });
     }
 
     mod.deps.requires.forEach((ref) => {
@@ -64,16 +99,6 @@ export function listProblems(
         result.push({
           packageId,
           type: "wantsBefore",
-          otherPackageId: ref.packageId,
-        });
-      }
-    });
-
-    mod.deps.incompatibilities.forEach((ref) => {
-      if (ref.packageId in modOrder) {
-        result.push({
-          packageId,
-          type: "incompatibleWith",
           otherPackageId: ref.packageId,
         });
       }

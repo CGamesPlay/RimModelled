@@ -30,6 +30,7 @@ export const Mod = z.object({
   version: z.string().optional(),
   author: z.string(),
   url: z.string().optional(),
+  steamWorkshopUrl: z.string().optional(),
   description: z.string().optional(),
   previewURL: z.string().optional(),
   isCritical: z.boolean(),
@@ -97,10 +98,19 @@ function parseUrl(input: string | undefined): string | undefined {
   }
 }
 
+function steamWorkshopUrl(
+  publishedFileId: string | undefined
+): string | undefined {
+  if (publishedFileId) {
+    return `https://steamcommunity.com/sharedfiles/filedetails/?id=${publishedFileId}`;
+  }
+  return undefined;
+}
+
 function checkMod(val: unknown): Mod {
   const ret = Mod.safeParse(val);
   if (ret.success) return ret.data;
-  console.warn("Failed to fully load mod", ret.error);
+  console.warn("Failed to fully load mod", (val as any).path, ret.error);
   // lol, proceed anyways
   return val as Mod;
 }
@@ -184,7 +194,9 @@ async function loadMod(
   version: string,
   modPath: string
 ): Promise<Mod | undefined> {
-  let about: Node, manifest: Node | undefined;
+  let about: Node,
+    manifest: Node | undefined,
+    publishedFileId: string | undefined;
   try {
     const aboutPath = path.join(modPath, "About", "About.xml");
     const aboutXML = await fs.readFile(aboutPath, "utf-8");
@@ -208,22 +220,36 @@ async function loadMod(
       throw e;
     }
   }
+  try {
+    const fileIdPath = path.join(modPath, "About", "PublishedFileId.txt");
+    publishedFileId = await fs.readFile(fileIdPath, "utf-8");
+  } catch (e) {
+    // Not a steam workshop item, no big deal.
+  }
   const previewPath = path.join(modPath, "About", "Preview.png");
   const hasPreview = await fs
     .access(previewPath)
     .then(() => true)
     .catch(() => false);
+  const name = x("/ModMetaData/name", about) ?? path.basename(modPath);
   const packageId = x("/ModMetaData/packageId", about)?.toLowerCase();
+  if (!packageId) {
+    console.error(
+      `Mod ${name} (installed at ${modPath}) does not have a packageId! It will be removed from the mod list.`
+    );
+    return undefined;
+  }
   const deps = loadModDeps(version, about, manifest, packageId!);
   return checkMod({
     path: modPath,
-    name: x("/ModMetaData/name", about) ?? path.basename(modPath),
+    name: name,
     packageId: x("/ModMetaData/packageId", about)?.toLowerCase(),
     version: x("/Manifest/version", manifest),
     author: xs("/ModMetaData/author | /ModMetaData/authors/li", about).join(
       ", "
     ),
     url: parseUrl(x("/ModMetaData/url", about)),
+    steamWorkshopUrl: steamWorkshopUrl(publishedFileId),
     description: x(
       `/ModMetaData/descriptionsByVersion/v${version} | /ModMetaData/description`,
       about

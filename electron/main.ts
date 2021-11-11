@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import windowStateKeeper from "electron-window-state";
 
 let mainWindow: BrowserWindow | null;
@@ -62,6 +62,16 @@ function createWindow() {
 
   mainWindow.on("closed", () => {
     mainWindow = null;
+  });
+
+  const webContents = mainWindow.webContents;
+  webContents.on("will-navigate", function (e, url) {
+    /* If url isn't the actual page */
+    console.log("will-navigate", url, webContents.getURL());
+    if (url != webContents.getURL()) {
+      e.preventDefault();
+      shell.openExternal(url);
+    }
   });
 }
 

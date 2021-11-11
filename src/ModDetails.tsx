@@ -6,31 +6,60 @@ import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
+import IconButton from "@mui/material/IconButton";
+import HomeIcon from "@mui/icons-material/Home";
+import SettingsIcon from "@mui/icons-material/Settings";
 
-import { Problem, ProblemDescription } from "./ProblemDescription";
+import { RimworldState, selectProblems } from "./useRimworld";
+import { listModProblems } from "./Problem";
+import { ProblemDescription } from "./ProblemDescription";
 import UnityLabelFormatter from "./UnityLabelFormatter";
 
 type Props = {
-  problems: Problem[];
-  index: Record<string, Mod>;
+  state: RimworldState;
   selectedNode: ModTreeItem;
   onSelectMod(id: string): void;
   setNodeNotes(path: string, notes: string): void;
 };
 
 export default function ModDetails({
-  problems,
-  index,
+  state,
   selectedNode,
   onSelectMod,
   setNodeNotes,
 }: Props): React.ReactElement {
   const [textFieldId] = useId(1, "ModDetailsNotes");
-  const selectedMod = index[selectedNode.id];
-
-  const myProblems = problems.filter(
-    (p) => p.packageId === selectedMod.packageId
+  const selectedMod = state.index[selectedNode.id];
+  const isEnabled = state.currentMods.find(
+    (t) => t[0] === selectedNode.id && t[1]
   );
+
+  const problems = isEnabled
+    ? selectProblems(state).filter((p) => p.packageId === selectedNode.id)
+    : listModProblems(
+        selectedNode.id,
+        state.currentMods,
+        state.index,
+        state.rimworld.version
+      );
+
+  const links: Array<{ url: string; title: string; icon: React.ReactNode }> =
+    [];
+  if (selectedMod.url) {
+    links.push({
+      url: selectedMod.url,
+      title: selectedMod.url,
+      icon: <HomeIcon />,
+    });
+  }
+  if (selectedMod.steamWorkshopUrl) {
+    links.push({
+      url: selectedMod.steamWorkshopUrl,
+      title: "Steam Workshop",
+      icon: <SettingsIcon />,
+    });
+  }
+
   return (
     <div key={selectedMod.packageId}>
       <Paper sx={{ overflow: "hidden", pb: 1 }}>
@@ -46,33 +75,30 @@ export default function ModDetails({
           src={selectedMod.previewURL}
         />
         <Box py={1} px={2}>
+          {links.length > 0 && (
+            <Box sx={{ float: "right" }}>
+              {links.map((link) => (
+                <IconButton href={link.url} title={link.title} key={link.url}>
+                  {link.icon}
+                </IconButton>
+              ))}
+            </Box>
+          )}
           <Typography variant="h6">{selectedMod.name}</Typography>
           <Typography
             variant="subtitle1"
             noWrap
-            sx={{ display: "inline", pr: 2 }}
+            sx={{ display: "inline-block", pr: 2 }}
           >
             Author: {selectedMod.author}
           </Typography>
           <Typography
             variant="subtitle1"
             noWrap
-            sx={{ display: "inline", pr: 2 }}
+            sx={{ display: "inline-block", pr: 2 }}
           >
             Version: {selectedMod.version ?? "N/A"}
           </Typography>
-          {selectedMod.url && (
-            <Typography
-              variant="subtitle1"
-              noWrap
-              sx={{ display: "inline", pr: 2 }}
-            >
-              Link:{" "}
-              <a href={selectedMod.url} title={selectedMod.url}>
-                Home Page
-              </a>
-            </Typography>
-          )}
         </Box>
         <Divider />
         <Box pt={2} pb={1} px={2}>
@@ -89,16 +115,16 @@ export default function ModDetails({
           />
         </Box>
       </Paper>
-      {myProblems.length > 0 && (
+      {problems.length > 0 && (
         <Alert severity="error" sx={{ m: 2, mb: 0 }}>
-          <AlertTitle>Errors</AlertTitle>
+          <AlertTitle>Problems</AlertTitle>
           <Box component="ul" m={0} pl={2}>
-            {myProblems.map((p, i) => {
+            {problems.map((p, i) => {
               return (
                 <li key={i}>
                   <ProblemDescription
                     problem={p}
-                    index={index}
+                    index={state.index}
                     onSelectMod={onSelectMod}
                   />
                 </li>

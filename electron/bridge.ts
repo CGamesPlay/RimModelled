@@ -18,9 +18,6 @@ export const api = {
   setDirtyState(isDirty: boolean): void {
     ipcRenderer.send("isDirty", isDirty);
   },
-  openExternal(url: string): void {
-    shell.openExternal(url);
-  },
   async load(): Promise<Rimworld> {
     _rimworld = await loadRimworld();
     return _rimworld;

@@ -171,7 +171,10 @@ export default function useRimworld(): [MaybeLoaded<RimworldState>, Actions] {
   );
 
   useEffect(() => {
-    reload();
+    reload().catch((err) => {
+      console.error(err.stack);
+      setState({ loaded: false, error: err.toString() });
+    });
   }, []);
 
   const boundActions = useMemo(() => {
