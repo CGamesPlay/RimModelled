@@ -126,8 +126,8 @@ export default function ModTree({
           })
         )
       );
-      // Recalculate the filters
-      setFilter(filter);
+      // Recalculate the filters if filtering
+      if (filter !== "") setFilter(filter);
     },
     [expandedKeys, setExpandedKeys]
   );
