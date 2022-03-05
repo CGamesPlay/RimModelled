@@ -1,13 +1,19 @@
 import * as path from "path";
-import { promises as fs } from "fs";
+import { promises as fs, existsSync } from "fs";
 import { pathToFileURL } from "url";
 import asyncPool from "tiny-async-pool";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import xpath from "xpath";
 import { z } from "zod";
 import { shell } from "electron";
+import * as os from "os";
 
 const corePackageId = "ludeon.rimworld";
+
+const directoryExists = [
+  (val: string) => existsSync(val),
+  { message: "Directory does not exist" },
+] as const;
 
 // Note: versions are loaded presently but ignored. So few mods use them that
 // it doesn't seem worth the trouble.
@@ -44,12 +50,18 @@ export const Mod = z.object({
 });
 export type Mod = z.infer<typeof Mod>;
 
+const RimworldPaths = z.object({
+  mods: z
+    .string()
+    .refine(...directoryExists)
+    .array(),
+  data: z.string().refine(...directoryExists),
+  lib: z.string().refine(...directoryExists),
+});
+export type RimworldPaths = z.infer<typeof RimworldPaths>;
+
 export const Rimworld = z.object({
-  paths: z.object({
-    mods: z.string().array(),
-    data: z.string(),
-    lib: z.string(),
-  }),
+  paths: RimworldPaths,
   version: z.string(),
   mods: Mod.array(),
   activeModIDs: z.string().array(),
@@ -125,32 +137,57 @@ function checkRimworld(val: unknown): Rimworld {
   return val as Rimworld;
 }
 
+function getPaths(): RimworldPaths {
+  switch (os.platform()) {
+    case "darwin": {
+      const steamappsDir =
+        process.env["STEAMAPPS"] ??
+        path.join(os.homedir(), "Library/Application Support/Steam/steamapps");
+      const rimworldDir = path.join(
+        os.homedir(),
+        "Library/Application Support/RimWorld"
+      );
+      return RimworldPaths.parse({
+        mods: [
+          path.join(steamappsDir, "common/RimWorld/RimWorldMac.app/Data"),
+          path.join(steamappsDir, "common/RimWorld/RimWorldMac.app/Mods"),
+          path.join(steamappsDir, "workshop/content/294100"),
+        ],
+        data: rimworldDir,
+        lib: path.join(steamappsDir, "common/RimWorld/RimWorldMac.app"),
+      });
+    }
+    case "win32": {
+      const steamappsDir =
+        process.env["STEAMAPPS"] ??
+        path.join(
+          process.env["ProgramFiles(x86)"] ??
+            process.env["ProgramFiles"] ??
+            "C:/",
+          "Steam/steamapps"
+        );
+      const rimworldDir = path.join(
+        process.env["LOCALAPPDATA"] ?? "C:/",
+        "../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios"
+      );
+      return RimworldPaths.parse({
+        mods: [
+          path.join(steamappsDir, "common/RimWorld/Data"),
+          path.join(steamappsDir, "common/RimWorld/Mods"),
+          path.join(steamappsDir, "workshop/content/294100"),
+        ],
+        data: rimworldDir,
+        lib: path.join(steamappsDir, "common/RimWorld"),
+      });
+    }
+    default:
+      throw new Error(`Steam paths not known for ${os.platform()}`);
+  }
+}
+
 export async function loadRimworld(): Promise<Rimworld> {
   const rimworld: Rimworld = {
-    paths: {
-      mods: [
-        path.join(
-          process.env["HOME"]!,
-          "Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app/Data"
-        ),
-        path.join(
-          process.env["HOME"]!,
-          "Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app/Mods"
-        ),
-        path.join(
-          process.env["HOME"]!,
-          "Library/Application Support/Steam/steamapps/workshop/content/294100"
-        ),
-      ],
-      data: path.join(
-        process.env["HOME"]!,
-        "Library/Application Support/RimWorld"
-      ),
-      lib: path.join(
-        process.env["HOME"]!,
-        "Library/Application Support/Steam/steamapps/common/RimWorld/RimWorldMac.app"
-      ),
-    },
+    paths: getPaths(),
     mods: [],
     version: undefined as any,
     activeModIDs: [],

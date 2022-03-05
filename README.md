@@ -26,6 +26,13 @@ yarn install
 yarn start
 ```
 
+If you have a non-default "steamapps" path, you need to specify it as an environment variable. On Windows, this might look like this:
+
+```
+set STEAMAPPS=D:\Steam\steamapps
+yarn start
+```
+
 ## Future
 
 The roadmap for RimModelled is flexible, but I'd like to add these features in the future:
