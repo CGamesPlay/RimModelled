@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import ReactDOM from "react-dom";
 
 import App from "./App";
+import ErrorPage from "./ErrorPage";
 import useRimworld, { selectIsDirty } from "./useRimworld";
 
 import "./index.css";
@@ -14,7 +15,10 @@ function Loader() {
     window.RimModelled.setDirtyState(isDirty);
   }, [isDirty]);
 
-  if (!state.loaded) return <div />;
+  if (!state.loaded) {
+    if (state.error) return <ErrorPage error={state.error} />;
+    return <div />;
+  }
   return <App state={state.state} actions={actions} isDirty={isDirty} />;
 }
 

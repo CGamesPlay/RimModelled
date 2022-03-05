@@ -17,6 +17,15 @@ Presently, RimModelled only works on macOS with Steam. If you fall into that buc
 
 If you don't fall into that bucket, not to worry! RimModelled should work fine with Windows, Linux, and the DRM-free version. However, I haven't been able to test them yet. If you want to be a guinea pig, open up [an issue](https://github.com/CGamesPlay/RimModelled/issues)!
 
+### Developers
+
+If you want to compile from source, you'll need Node and Yarn installed. Once you have those, it should be as simple as this to run the app:
+
+```
+yarn install
+yarn start
+```
+
 ## Future
 
 The roadmap for RimModelled is flexible, but I'd like to add these features in the future:
