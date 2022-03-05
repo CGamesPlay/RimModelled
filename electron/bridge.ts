@@ -1,4 +1,4 @@
-import { contextBridge, clipboard, ipcRenderer, shell } from "electron";
+import { contextBridge, clipboard, ipcRenderer } from "electron";
 
 import {
   loadRimworld,

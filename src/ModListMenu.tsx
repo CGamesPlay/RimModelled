@@ -12,12 +12,14 @@ import Dialog from "@mui/material/Dialog";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import LaunchIcon from "@mui/icons-material/Launch";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import FileCopyIcon from "@mui/icons-material/FileCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ContentPasteIcon from "@mui/icons-material/ContentPaste";
@@ -32,8 +34,6 @@ import TextFieldDialog from "./TextFieldDialog";
 
 type Props = {
   state: RimworldState;
-  isDirty: boolean;
-  reload(): void;
   save(launchAfter: boolean): void;
   replaceCurrentMods(mods: Array<[string, boolean]>): void;
   saveModList(name: string, mods: Array<[string, boolean]>): void;
@@ -42,8 +42,6 @@ type Props = {
 
 export default function ModListMenu({
   state,
-  isDirty,
-  reload,
   save,
   replaceCurrentMods,
   saveModList,
@@ -98,17 +96,6 @@ export default function ModListMenu({
     replaceCurrentMods(mods.map((x) => [x[1], true]));
   }
 
-  function handleReload() {
-    if (
-      !isDirty ||
-      confirm(
-        "This will throw away the changes you have made. Are you sure you want to reload?"
-      )
-    ) {
-      reload();
-    }
-  }
-
   return (
     <>
       <ButtonGroup color="secondary" variant="outlined" sx={{ mr: 1 }}>
@@ -134,6 +121,17 @@ export default function ModListMenu({
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
+        <MenuItem
+          onClick={() => {
+            loadPopup.close();
+            setOpenModal("loadModList");
+          }}
+        >
+          <ListItemIcon>
+            <FolderOpenIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Load saved mod list</ListItemText>
+        </MenuItem>
         <MenuItem
           onClick={() => {
             loadPopup.close();
@@ -165,6 +163,17 @@ export default function ModListMenu({
         <MenuItem
           onClick={() => {
             savePopup.close();
+            setOpenModal("saveModList");
+          }}
+        >
+          <ListItemIcon>
+            <SaveIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Save mod list</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            savePopup.close();
             window.RimModelled.writeClipboardText(
               modsToString(state.currentMods, state.index)
             );
@@ -184,6 +193,17 @@ export default function ModListMenu({
         <MenuItem
           onClick={() => {
             launchPopup.close();
+            save(true);
+          }}
+        >
+          <ListItemIcon>
+            <LaunchIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Save active mods and launch</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            launchPopup.close();
             save(false);
           }}
         >
@@ -192,7 +212,12 @@ export default function ModListMenu({
           </ListItemIcon>
           <ListItemText>Save without launching</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleReload}>
+        <MenuItem
+          onClick={() => {
+            launchPopup.close();
+            window.location.reload();
+          }}
+        >
           <ListItemIcon>
             <RefreshIcon fontSize="small" />
           </ListItemIcon>

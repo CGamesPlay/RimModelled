@@ -66,8 +66,6 @@ export default function App({
           <Box sx={{ flexGrow: 1 }} />
           <ModListMenu
             state={state}
-            isDirty={isDirty}
-            reload={actions.reload}
             save={actions.save}
             replaceCurrentMods={actions.replaceCurrentMods}
             saveModList={actions.saveModList}

@@ -14,6 +14,19 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 let isDirty = false;
 let isQuitting = false;
 
+function confirmClose(): Promise<boolean> {
+  return dialog
+    .showMessageBox(mainWindow!, {
+      type: "question",
+      buttons: ["Keep Editing", "Discard Changes"],
+      defaultId: 0,
+      title: "Unsaved Changes",
+      message:
+        "There are changes to your mod lists which will be lost if you continue. Do you want to discard these changes?",
+    })
+    .then(({ response }) => response === 1);
+}
+
 function createWindow() {
   const mainWindowState = windowStateKeeper({
     defaultWidth: 1100,
@@ -41,22 +54,14 @@ function createWindow() {
   mainWindow.on("close", (e) => {
     if (isDirty) {
       e.preventDefault();
-      dialog
-        .showMessageBox(mainWindow!, {
-          type: "question",
-          buttons: ["Keep Editing", "Discard Changes"],
-          defaultId: 0,
-          title: "Confirm",
-          message: "There are unsaved changes to your mod lists.",
-        })
-        .then(({ response }) => {
-          if (response === 1) {
-            mainWindow!.destroy();
-            if (isQuitting) app.quit();
-          } else {
-            isQuitting = false;
-          }
-        });
+      confirmClose().then((confirmed) => {
+        if (confirmed) {
+          mainWindow!.destroy();
+          if (isQuitting) app.quit();
+        } else {
+          isQuitting = false;
+        }
+      });
     }
   });
 
@@ -67,10 +72,17 @@ function createWindow() {
   const webContents = mainWindow.webContents;
   webContents.on("will-navigate", function (e, url) {
     /* If url isn't the actual page */
-    console.log("will-navigate", url, webContents.getURL());
     if (url != webContents.getURL()) {
       e.preventDefault();
       shell.openExternal(url);
+    } else if (isDirty) {
+      e.preventDefault();
+      confirmClose().then((confirmed) => {
+        if (confirmed) {
+          isDirty = false;
+          webContents.loadURL(url);
+        }
+      });
     }
   });
 }
