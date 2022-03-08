@@ -6,6 +6,7 @@ import {
   readModsFromSave,
   Rimworld,
 } from "./rimworld";
+import { logger, LogEntry } from "./logging";
 import { loadUserData, saveUserData, UserData } from "./userData";
 
 let _rimworld: Rimworld | undefined = undefined;
@@ -43,6 +44,10 @@ export const api = {
   },
   readClipboardText(): string {
     return clipboard.readText();
+  },
+
+  log(message: LogEntry): void {
+    logger.log(message);
   },
 };
 

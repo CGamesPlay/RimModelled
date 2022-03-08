@@ -8,6 +8,8 @@ import { z } from "zod";
 import { shell } from "electron";
 import * as os from "os";
 
+import { logger } from "./logging";
+
 const corePackageId = "ludeon.rimworld";
 
 const directoryExists = [
@@ -122,7 +124,7 @@ function steamWorkshopUrl(
 function checkMod(val: unknown): Mod {
   const ret = Mod.safeParse(val);
   if (ret.success) return ret.data;
-  console.warn("Failed to fully load mod", (val as any).path, ret.error);
+  logger.warn("Failed to fully load mod", (val as any).path, ret.error);
   // lol, proceed anyways
   return val as Mod;
 }
@@ -132,7 +134,7 @@ function checkRimworld(val: unknown): Rimworld {
   const schema = Rimworld.extend({ mods: z.any().array() });
   const ret = schema.safeParse(val);
   if (ret.success) return ret.data;
-  console.warn("Failed to load Rimworld", ret.error);
+  logger.warn("Failed to load Rimworld", ret.error);
   // lol, proceed anyways
   return val as Rimworld;
 }
@@ -271,7 +273,7 @@ async function loadMod(
   const name = x("/ModMetaData/name", about) ?? path.basename(modPath);
   const packageId = x("/ModMetaData/packageId", about)?.toLowerCase();
   if (!packageId) {
-    console.error(
+    logger.error(
       `Mod ${name} (installed at ${modPath}) does not have a packageId! It will be removed from the mod list.`
     );
     return undefined;
@@ -405,7 +407,7 @@ async function readModConfig(rimworld: Rimworld) {
     const configXML = await fs.readFile(configPath, "utf-8");
     modConfig = new DOMParser().parseFromString(configXML, "text/xml");
   } catch (e) {
-    console.warn("Cannot load active mod list:", e);
+    logger.warn("Cannot load active mod list:", e);
     return;
   }
   rimworld.activeModIDs = xs("/ModsConfigData/activeMods/li", modConfig);
@@ -440,7 +442,7 @@ export async function readModsFromSave(
     save = new DOMParser().parseFromString(saveXML, "text/xml");
   } catch (e) {
     // Can't load this save; not critical
-    console.warn("Failed to load save", savePath, e.message);
+    logger.warn("Failed to load save", savePath, e.message);
     return undefined;
   }
   const mods = xs("/savegame/meta/modIds/li", save);
