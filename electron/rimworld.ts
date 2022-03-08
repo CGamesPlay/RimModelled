@@ -154,7 +154,7 @@ function getPaths(): RimworldPaths {
         getEnv("STEAMAPPS") ??
         path.join(
           getEnv("HOME") ?? "./",
-          "Library/Application Support/Steam/steamapps2"
+          "Library/Application Support/Steam/steamapps"
         );
       rimworldDir = path.join(
         getEnv("HOME") ?? "./",
