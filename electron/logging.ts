@@ -1,9 +1,30 @@
 import envPaths from "env-paths";
 import winston from "winston";
+import Transport from "winston-transport";
 import * as path from "path";
 import mkdirp from "mkdirp";
 
 export { LogEntry } from "winston";
+
+class ConsoleTransport extends Transport {
+  log(info: any, callback: () => void) {
+    if (typeof info !== "object") {
+      info = { message: info };
+    }
+    const { level, message, ...rest } = info;
+    delete rest[Symbol.for("level")];
+    delete rest[Symbol.for("message")];
+    delete rest[Symbol.for("splat")];
+    if (level === "error") {
+      console.error(message, rest);
+    } else if (level === "warn") {
+      console.warn(message, rest);
+    } else {
+      console.log(message, rest);
+    }
+    callback();
+  }
+}
 
 function getFileTransport() {
   const paths = envPaths("RimModelled", { suffix: "" });
@@ -20,18 +41,7 @@ function getFileTransport() {
 
 export const logger = winston.createLogger({
   level: "info",
-  transports: [
-    getFileTransport(),
-    new winston.transports.Console({
-      format: winston.format.printf(
-        ({ timestamp, level, message, ...rest }) =>
-          `${message}${
-            Object.keys(rest).length > 0 ? ` ${JSON.stringify(rest)}` : ""
-          }`
-      ),
-      consoleWarnLevels: ["error", "warn", "debug"],
-    }),
-  ],
+  transports: [getFileTransport(), new ConsoleTransport()],
 });
 
 if (process.env.NODE_ENV !== "production") {

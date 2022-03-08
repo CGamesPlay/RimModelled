@@ -140,16 +140,27 @@ function checkRimworld(val: unknown): Rimworld {
 }
 
 function getPaths(): RimworldPaths {
+  const queriedEnv: Record<string, string> = {};
+  function getEnv(name: string): string | undefined {
+    queriedEnv[name] = process.env[name] ?? "";
+    return process.env[name];
+  }
+  let steamappsDir: string;
+  let rimworldDir: string;
+  let paths: RimworldPaths;
   switch (os.platform()) {
     case "darwin": {
-      const steamappsDir =
-        process.env["STEAMAPPS"] ??
-        path.join(os.homedir(), "Library/Application Support/Steam/steamapps");
-      const rimworldDir = path.join(
-        os.homedir(),
+      steamappsDir =
+        getEnv("STEAMAPPS") ??
+        path.join(
+          getEnv("HOME") ?? "./",
+          "Library/Application Support/Steam/steamapps2"
+        );
+      rimworldDir = path.join(
+        getEnv("HOME") ?? "./",
         "Library/Application Support/RimWorld"
       );
-      return RimworldPaths.parse({
+      paths = {
         mods: [
           path.join(steamappsDir, "common/RimWorld/RimWorldMac.app/Data"),
           path.join(steamappsDir, "common/RimWorld/RimWorldMac.app/Mods"),
@@ -157,22 +168,21 @@ function getPaths(): RimworldPaths {
         ],
         data: rimworldDir,
         lib: path.join(steamappsDir, "common/RimWorld/RimWorldMac.app"),
-      });
+      };
+      break;
     }
     case "win32": {
-      const steamappsDir =
-        process.env["STEAMAPPS"] ??
+      steamappsDir =
+        getEnv("STEAMAPPS") ??
         path.join(
-          process.env["ProgramFiles(x86)"] ??
-            process.env["ProgramFiles"] ??
-            "C:/",
+          getEnv("ProgramFiles(x86)") ?? getEnv("ProgramFiles") ?? "C:/",
           "Steam/steamapps"
         );
-      const rimworldDir = path.join(
-        process.env["LOCALAPPDATA"] ?? "C:/",
+      rimworldDir = path.join(
+        getEnv("LOCALAPPDATA") ?? "C:/",
         "../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios"
       );
-      return RimworldPaths.parse({
+      paths = {
         mods: [
           path.join(steamappsDir, "common/RimWorld/Data"),
           path.join(steamappsDir, "common/RimWorld/Mods"),
@@ -180,10 +190,24 @@ function getPaths(): RimworldPaths {
         ],
         data: rimworldDir,
         lib: path.join(steamappsDir, "common/RimWorld"),
-      });
+      };
+      break;
     }
     default:
       throw new Error(`Steam paths not known for ${os.platform()}`);
+  }
+
+  const result = RimworldPaths.safeParse(paths);
+  if (result.success) {
+    return result.data;
+  } else {
+    logger.error("Failed to determine RimWorld location", {
+      platform: os.platform(),
+      env: queriedEnv,
+      paths,
+      errors: result.error,
+    });
+    throw new Error(`Steam paths are invalid.`);
   }
 }
 
