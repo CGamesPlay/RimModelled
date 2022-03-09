@@ -1,21 +1,16 @@
 import * as path from "path";
-import { promises as fs, existsSync } from "fs";
+import { promises as fs } from "fs";
 import { pathToFileURL } from "url";
 import asyncPool from "tiny-async-pool";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import xpath from "xpath";
 import { z } from "zod";
 import { shell } from "electron";
-import * as os from "os";
 
+import { RimworldPaths } from "./directories";
 import { logger } from "./logging";
 
 const corePackageId = "ludeon.rimworld";
-
-const directoryExists = [
-  (val: string) => existsSync(val),
-  { message: "Directory does not exist" },
-] as const;
 
 // Note: versions are loaded presently but ignored. So few mods use them that
 // it doesn't seem worth the trouble.
@@ -52,18 +47,7 @@ export const Mod = z.object({
 });
 export type Mod = z.infer<typeof Mod>;
 
-const RimworldPaths = z.object({
-  mods: z
-    .string()
-    .refine(...directoryExists)
-    .array(),
-  data: z.string().refine(...directoryExists),
-  lib: z.string().refine(...directoryExists),
-});
-export type RimworldPaths = z.infer<typeof RimworldPaths>;
-
 export const Rimworld = z.object({
-  paths: RimworldPaths,
   version: z.string(),
   mods: Mod.array(),
   activeModIDs: z.string().array(),
@@ -124,7 +108,7 @@ function steamWorkshopUrl(
 function checkMod(val: unknown): Mod {
   const ret = Mod.safeParse(val);
   if (ret.success) return ret.data;
-  logger.warn("Failed to fully load mod", (val as any).path, ret.error);
+  logger.error("Failed to load mod", { mod: val, error: ret.error });
   // lol, proceed anyways
   return val as Mod;
 }
@@ -134,112 +118,42 @@ function checkRimworld(val: unknown): Rimworld {
   const schema = Rimworld.extend({ mods: z.any().array() });
   const ret = schema.safeParse(val);
   if (ret.success) return ret.data;
-  logger.warn("Failed to load Rimworld", ret.error);
+  logger.error("Failed to load RimWorld", {
+    rimworld: { ...(val as object), mods: undefined },
+    error: ret.error,
+  });
   // lol, proceed anyways
   return val as Rimworld;
 }
 
-function getPaths(): RimworldPaths {
-  const queriedEnv: Record<string, string> = {};
-  function getEnv(name: string): string | undefined {
-    queriedEnv[name] = process.env[name] ?? "";
-    return process.env[name];
-  }
-  let steamappsDir: string;
-  let rimworldDir: string;
-  let paths: RimworldPaths;
-  switch (os.platform()) {
-    case "darwin": {
-      steamappsDir =
-        getEnv("STEAMAPPS") ??
-        path.join(
-          getEnv("HOME") ?? "./",
-          "Library/Application Support/Steam/steamapps"
-        );
-      rimworldDir = path.join(
-        getEnv("HOME") ?? "./",
-        "Library/Application Support/RimWorld"
-      );
-      paths = {
-        mods: [
-          path.join(steamappsDir, "common/RimWorld/RimWorldMac.app/Data"),
-          path.join(steamappsDir, "common/RimWorld/RimWorldMac.app/Mods"),
-          path.join(steamappsDir, "workshop/content/294100"),
-        ],
-        data: rimworldDir,
-        lib: path.join(steamappsDir, "common/RimWorld/RimWorldMac.app"),
-      };
-      break;
-    }
-    case "win32": {
-      steamappsDir =
-        getEnv("STEAMAPPS") ??
-        path.join(
-          getEnv("ProgramFiles(x86)") ?? getEnv("ProgramFiles") ?? "C:/",
-          "Steam/steamapps"
-        );
-      rimworldDir = path.join(
-        getEnv("LOCALAPPDATA") ?? "C:/",
-        "../LocalLow/Ludeon Studios/RimWorld by Ludeon Studios"
-      );
-      paths = {
-        mods: [
-          path.join(steamappsDir, "common/RimWorld/Data"),
-          path.join(steamappsDir, "common/RimWorld/Mods"),
-          path.join(steamappsDir, "workshop/content/294100"),
-        ],
-        data: rimworldDir,
-        lib: path.join(steamappsDir, "common/RimWorld"),
-      };
-      break;
-    }
-    default:
-      throw new Error(`Steam paths not known for ${os.platform()}`);
-  }
-
-  const result = RimworldPaths.safeParse(paths);
-  if (result.success) {
-    return result.data;
-  } else {
-    logger.error("Failed to determine RimWorld location", {
-      platform: os.platform(),
-      env: queriedEnv,
-      paths,
-      errors: result.error,
-    });
-    throw new Error(`Steam paths are invalid.`);
-  }
-}
-
-export async function loadRimworld(): Promise<Rimworld> {
+export async function loadRimworld(paths: RimworldPaths): Promise<Rimworld> {
   const rimworld: Rimworld = {
-    paths: getPaths(),
     mods: [],
     version: undefined as any,
     activeModIDs: [],
     gameSaves: [],
   };
-  await readVersion(rimworld);
-  await scanMods(rimworld);
-  await readModConfig(rimworld);
-  await scanGameSaves(rimworld);
+  await readVersion(paths, rimworld);
+  await scanMods(paths, rimworld);
+  await readModConfig(paths, rimworld);
+  await scanGameSaves(paths, rimworld);
   return checkRimworld(rimworld);
 }
 
-export function launchRimworld(_rimworld: Rimworld): void {
+export function launchRimworld(): void {
   shell.openExternal(`steam://run/294100`);
 }
 
-async function readVersion(rimworld: Rimworld) {
-  const versionPath = path.join(rimworld.paths.lib, "Version.txt");
+async function readVersion(paths: RimworldPaths, rimworld: Rimworld) {
+  const versionPath = path.join(paths.lib, "Version.txt");
   const versionText = await fs.readFile(versionPath, "utf-8");
   const version = versionText.match(/^\d+\.\d+/)?.[0];
   if (version) rimworld.version = version;
 }
 
-async function scanMods(rimworld: Rimworld) {
+async function scanMods(paths: RimworldPaths, rimworld: Rimworld) {
   const allPaths: string[] = [];
-  for (const modCollection of rimworld.paths.mods) {
+  for (const modCollection of paths.mods) {
     const items = await fs.readdir(modCollection, { withFileTypes: true });
     for (const modDir of items) {
       if (!modDir.isDirectory()) continue;
@@ -264,7 +178,7 @@ async function loadMod(
     const aboutPath = path.join(modPath, "About", "About.xml");
     const aboutXML = await fs.readFile(aboutPath, "utf-8");
     about = new DOMParser().parseFromString(aboutXML, "text/xml");
-  } catch (e) {
+  } catch (e: any) {
     if (e.code === "ENOENT") {
       // If the directory isn't a mod, just ignore it.
       return undefined;
@@ -276,7 +190,7 @@ async function loadMod(
     const manifestPath = path.join(modPath, "About", "Manifest.xml");
     const manifestXML = await fs.readFile(manifestPath, "utf-8");
     manifest = new DOMParser().parseFromString(manifestXML, "text/xml");
-  } catch (e) {
+  } catch (e: any) {
     if (e.code === "ENOENT") {
       // Mod doesn't have a manifest, no big deal.
     } else {
@@ -420,14 +334,10 @@ function parseModRefs(input: string[]): ModRef[] {
   return refs;
 }
 
-async function readModConfig(rimworld: Rimworld) {
+async function readModConfig(paths: RimworldPaths, rimworld: Rimworld) {
   let modConfig: Node;
   try {
-    const configPath = path.join(
-      rimworld.paths.data,
-      "Config",
-      "ModsConfig.xml"
-    );
+    const configPath = path.join(paths.data, "Config", "ModsConfig.xml");
     const configXML = await fs.readFile(configPath, "utf-8");
     modConfig = new DOMParser().parseFromString(configXML, "text/xml");
   } catch (e) {
@@ -437,8 +347,8 @@ async function readModConfig(rimworld: Rimworld) {
   rimworld.activeModIDs = xs("/ModsConfigData/activeMods/li", modConfig);
 }
 
-async function scanGameSaves(rimworld: Rimworld) {
-  const saveDir = path.join(rimworld.paths.data, "Saves");
+async function scanGameSaves(paths: RimworldPaths, rimworld: Rimworld) {
+  const saveDir = path.join(paths.data, "Saves");
   let items = await fs.readdir(saveDir);
   items = items.filter((i) => i.endsWith(".rws"));
   const stats = await asyncPool(
@@ -456,15 +366,16 @@ async function scanGameSaves(rimworld: Rimworld) {
 }
 
 export async function readModsFromSave(
+  paths: RimworldPaths,
   rimworld: Rimworld,
   name: string
 ): Promise<string[] | undefined> {
-  const savePath = path.join(rimworld.paths.data, "Saves", `${name}.rws`);
+  const savePath = path.join(paths.data, "Saves", `${name}.rws`);
   let save: Node;
   try {
     const saveXML = await fs.readFile(savePath, "utf-8");
     save = new DOMParser().parseFromString(saveXML, "text/xml");
-  } catch (e) {
+  } catch (e: any) {
     // Can't load this save; not critical
     logger.warn("Failed to load save", savePath, e.message);
     return undefined;
@@ -474,11 +385,12 @@ export async function readModsFromSave(
 }
 
 export async function setActiveMods(
+  paths: RimworldPaths,
   rimworld: Rimworld,
   ids: string[],
   { launchAfter = false }: { launchAfter?: boolean }
 ): Promise<void> {
-  const configPath = path.join(rimworld.paths.data, "Config", "ModsConfig.xml");
+  const configPath = path.join(paths.data, "Config", "ModsConfig.xml");
   let configXML = await fs.readFile(configPath, "utf-8");
   const modConfig = new DOMParser().parseFromString(configXML, "text/xml");
   const activeMods = xpath.select(
@@ -499,5 +411,5 @@ export async function setActiveMods(
   activeMods.appendChild(newline);
   configXML = new XMLSerializer().serializeToString(modConfig);
   await fs.writeFile(configPath, configXML, "utf-8");
-  if (launchAfter) launchRimworld(rimworld);
+  if (launchAfter) launchRimworld();
 }

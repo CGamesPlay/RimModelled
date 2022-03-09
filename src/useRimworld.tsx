@@ -132,8 +132,11 @@ export default function useRimworld(): [MaybeLoaded<RimworldState>, Actions] {
   const reload = useCallback(async () => {
     try {
       setState({ loaded: false });
-      const rimworld = await window.RimModelled.load();
-      const userData = await window.RimModelled.loadUserData();
+      const appState = await window.RimModelled.load();
+      if (appState.state !== "valid") {
+        throw appState.error;
+      }
+      const { rimworld, userData } = appState;
       const index: Record<string, Mod> = {};
       for (const m of rimworld.mods) {
         index[m.packageId] = m;
@@ -148,7 +151,7 @@ export default function useRimworld(): [MaybeLoaded<RimworldState>, Actions] {
         currentMods,
       };
       setState({ loaded: true, state, diskState: state });
-    } catch (e) {
+    } catch (e: any) {
       setState({ loaded: false, error: e.message });
       throw e;
     }

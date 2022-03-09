@@ -368,5 +368,5 @@ function modsToString(
 
 function stringToMods(input: string): string[] {
   const results = input.matchAll(/^- Id: (.*)$/gm);
-  return Array.from(results);
+  return Array.from(results).map((g) => g[1]);
 }

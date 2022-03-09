@@ -2,7 +2,9 @@ import * as path from "path";
 import { promises as fs } from "fs";
 import { z } from "zod";
 
+import { logger } from "./logging";
 import { locateItem } from "../src/treeUtils";
+import { RimworldPaths } from "./directories";
 
 export const ModList = z.object({
   name: z.string(),
@@ -44,18 +46,24 @@ export const UserData = z.object({
 
 export type UserData = z.infer<typeof UserData> & { tree: ModTreeFolder };
 
-export async function loadUserData(rimworld: Rimworld): Promise<UserData> {
+export async function loadUserData(
+  paths: RimworldPaths,
+  rimworld: Rimworld
+): Promise<UserData> {
   let userData: UserData | undefined = undefined;
   try {
-    const configPath = path.join(rimworld.paths.data, "rimmodelled.json");
+    const configPath = path.join(paths.data, "rimmodelled.json");
     const configData = await fs.readFile(configPath, "utf-8");
     userData = JSON.parse(configData);
     const ret = UserData.safeParse(userData);
     if (!ret.success) {
-      console.warn("RimModelled user data has errors", ret.error);
+      logger.warn("RimModelled user data has errors", {
+        input: userData,
+        error: ret.error,
+      });
     }
-  } catch (err) {
-    console.warn("Could not load RimModelled user data", err);
+  } catch (error: any) {
+    logger.warn("Could not load RimModelled user data", { error });
   }
   let coreFolder: ModTreeFolder;
   let modsFolder: ModTreeFolder;
@@ -112,9 +120,9 @@ export async function loadUserData(rimworld: Rimworld): Promise<UserData> {
 }
 
 export async function saveUserData(
-  rimworld: Rimworld,
+  paths: RimworldPaths,
   userData: UserData
 ): Promise<void> {
-  const configPath = path.join(rimworld.paths.data, "rimmodelled.json");
+  const configPath = path.join(paths.data, "rimmodelled.json");
   await fs.writeFile(configPath, JSON.stringify(userData, null, 2), "utf-8");
 }

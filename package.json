@@ -3,7 +3,7 @@
   "author": "Ryan Patterson <ry@cgamesplay.com>",
   "version": "1.0.0",
   "description": "A RimWorld Mod Manager",
-  "main": "./.webpack/main/index.js",
+  "main": ".webpack/main",
   "scripts": {
     "start": "electron-forge start",
     "package": "NODE_ENV=production electron-forge package",

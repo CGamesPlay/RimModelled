@@ -2,6 +2,7 @@ import envPaths from "env-paths";
 import winston from "winston";
 import Transport from "winston-transport";
 import * as path from "path";
+import * as os from "os";
 import mkdirp from "mkdirp";
 
 export { LogEntry } from "winston";
@@ -61,4 +62,4 @@ if (process.env.NODE_ENV !== "production") {
   );
 }
 
-logger.info("RimModelled started");
+logger.info("RimModelled started", { platform: os.platform() });
